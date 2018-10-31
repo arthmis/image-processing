@@ -33,7 +33,12 @@ impl GrayScaleHistogram {
 fn main() {
     let img = image::open("images/london-bridge.jpg").unwrap().to_rgba();
 
-    let hist = get_color_histogram(&img);
+    // let hist = get_color_histogram(&img);
+
+    let mean = get_mean(&img);
+    let variance = get_variance(&img);
+
+    println!("mean: {}\nvariance: {}", mean, variance); 
 }
 
 fn get_color_histogram(image: &RgbaImage) -> ColorHistogram {
@@ -63,4 +68,30 @@ fn get_histogram(image: &GrayAlphaImage) -> GrayScaleHistogram {
         println!("values: {}", histogram.values[i]);
     }
     histogram
+}
+
+fn get_mean(image: &RgbaImage) -> f64 {
+    let image_iter = image.pixels(); 
+    let mut mean: f64 = 0.0;
+    for pixel in image_iter {
+        mean += (f64::from(pixel[0]) + f64::from(pixel[1]) + 
+                f64::from(pixel[2])) / 3.0; 
+    }
+    mean /= f64::from(image.width()) * f64::from(image.height()); 
+
+    mean
+}
+
+fn get_variance(image: &RgbaImage) -> f64 {
+    let mean = get_mean(&image); 
+    let mut variance: f64 = 0.0;
+    let image_iter = image.pixels(); 
+    for pixel in image_iter {
+        let pixel_average = (f64::from(pixel[0]) + f64::from(pixel[1]) + 
+                f64::from(pixel[2])) / 3.0;
+        variance += (pixel_average - mean).powi(2); 
+    }
+    variance /= f64::from(image.width()) * f64::from(image.height());
+    
+    variance
 }
