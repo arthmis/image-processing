@@ -1,6 +1,6 @@
 extern crate image; 
 
-use image::{GenericImage, ImageBuffer, GenericImageView, RgbaImage, GrayAlphaImage, ConvertBuffer};
+use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel};
 
 struct RgbaHistogram {
     red: [u32; 256],
@@ -31,13 +31,22 @@ impl GrayHistogram {
 }
 
 fn main() {
+
     let img: GrayAlphaImage = image::open("images/london-bridge.jpg")
-        .expect("Image not found").to_rgba().convert();
+        .expect("Image not found").to_luma_alpha();
 
-    // let img: GrayAlphaImage = image::open("images/london-bridge.jpg")
-    //     .expect("Image not found").to_luma_alpha();
+    let mut image: GrayAlphaImage = ImageBuffer::new(2, 2);
 
+    // for pix in image.pixels_mut() {
+    //     let channels = pix.channels_mut();
+    //     channels[0] = 100;
+    //     channels[1] = 255;  
+    // }
 
+    // let hist = gray_histogram(&image);
+    // for i in 0..255 {
+    //     println!("{}: {}", i,  &hist.values[i]);
+    // }
     let hist = gray_histogram(&img);
 
     img.save("images/gray-london-bridge.jpg").expect("directory or file not found");
@@ -94,18 +103,23 @@ fn get_variance(image: &RgbaImage) -> f64 {
 }
 
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use image::{GenericImage, ImageBuffer, GenericImageView, RgbaImage, GrayAlphaImage, ConvertBuffer, GrayImage, Luma, Rgb, load_from_memory};
-//     #[test]
-//     fn test_histogram() {
-//         let image = load_from_memory(&[1u8, 2u8, 3u8, 2u8, 1u8]).unwrap();
-//         let hist = gray_histogram(&image);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{GenericImage, ImageBuffer, GenericImageView, RgbaImage, GrayAlphaImage, ConvertBuffer, GrayImage, Luma, Rgb, load_from_memory};
+    #[test]
+    fn test_histogram() {
+        let mut image: GrayAlphaImage = ImageBuffer::new(2, 2);
 
-//         assert_eq!(hist[0], 0);
-//         assert_eq!(hist[1], 2);
-//         assert_eq!(hist[2], 2);
-//         assert_eq!(hist[3], 1);
-// }
-// }
+        image.get_pixel_mut(0, 0)[0] = 1; 
+        image.get_pixel_mut(0, 1)[0] = 1; 
+        image.get_pixel_mut(1, 0)[0] = 3; 
+        image.get_pixel_mut(1, 1)[0] = 4; 
+
+        let hist = gray_histogram(&image);
+
+        assert_eq!(hist.values[1], 2);
+        assert_eq!(hist.values[3], 1);
+        assert_eq!(hist.values[4], 1);
+    }
+}
