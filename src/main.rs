@@ -1,6 +1,6 @@
 extern crate image; 
 
-use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel, GrayImage};
+use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel, GrayImage, GenericImage};
 
 struct RgbHistogram {
     red: [u32; 256],
@@ -32,10 +32,12 @@ impl LumaHistogram {
 
 fn main() {
 
-    let img: GrayAlphaImage = image::open("images/london-bridge.jpg")
-        .expect("Image not found").to_luma_alpha();
+    let img = image::open("images/london-bridge.jpg")
+        .expect("Image not found").to_rgba();
 
-    let mut image: GrayAlphaImage = ImageBuffer::new(2, 2);
+    rgba_histogram(&img);
+
+    // let mut image: GrayAlphaImage = ImageBuffer::new(2, 2);
 
     // for pix in image.pixels_mut() {
     //     let channels = pix.channels_mut();
@@ -47,7 +49,7 @@ fn main() {
     // for i in 0..255 {
     //     println!("{}: {}", i,  &hist.values[i]);
     // }
-    let hist = lumaA_histogram(&img);
+    // let hist = lumaA_histogram(&img);
 
     // img.save("images/gray-london-bridge.jpg").expect("directory or file not found");
     
@@ -58,13 +60,19 @@ fn main() {
     // println!("mean: {}\nvariance: {}", mean, variance); 
 }
 
-fn rgba_histogram(image: &RgbaImage) -> RgbHistogram {
-    let mut histogram = RgbHistogram::new();
+fn rgba_histogram(image: &RgbaImage) -> [[u32; 256]; 3] {
+    // let mut histogram = RgbHistogram::new();
+    let mut histogram = [[0_u32; 256]; 3];
     for pixel in image.pixels() {
-        histogram.red[pixel[0] as usize] += 1;
-        histogram.green[pixel[1] as usize] += 1;
-        histogram.blue[pixel[2] as usize] += 1;
+        histogram[0][pixel[0] as usize] += 1;
+        histogram[1][pixel[1] as usize] += 1;
+        histogram[2][pixel[2] as usize] += 1;
     }
+    // for pixel in image.pixels() {
+    //     histogram.red[pixel[0] as usize] += 1;
+    //     histogram.green[pixel[1] as usize] += 1;
+    //     histogram.blue[pixel[2] as usize] += 1;
+    // }
     histogram
 }
 
@@ -94,37 +102,38 @@ fn luma_histogram(image: &GrayImage) -> LumaHistogram {
     histogram
 }
 
-fn get_mean(image: &RgbaImage) -> f64 {
-    let image_iter = image.pixels(); 
-    let mut mean: f64 = 0.0;
-    for pixel in image_iter {
-        mean += (f64::from(pixel[0]) + f64::from(pixel[1]) + 
-                f64::from(pixel[2])) / 3.0; 
-    }
-    mean /= f64::from(image.width()) * f64::from(image.height()); 
+// fn get_mean(image: &RgbaImage) -> f64 {
+//     let image_iter = image.pixels(); 
+//     let mut mean: f64 = 0.0;
+//     for pixel in image_iter {
+//         mean += (f64::from(pixel[0]) + f64::from(pixel[1]) + 
+//                 f64::from(pixel[2])) / 3.0; 
+//     }
+//     mean /= f64::from(image.width()) * f64::from(image.height()); 
 
-    mean
-}
+//     mean
+// }
 
-fn get_variance(image: &RgbaImage) -> f64 {
-    let mean = get_mean(&image); 
-    let mut variance: f64 = 0.0;
-    let image_iter = image.pixels(); 
-    for pixel in image_iter {
-        let pixel_average = (f64::from(pixel[0]) + f64::from(pixel[1]) + 
-                f64::from(pixel[2])) / 3.0;
-        variance += (pixel_average - mean).powi(2); 
-    }
-    variance /= f64::from(image.width()) * f64::from(image.height());
+// fn get_variance(image: &RgbaImage) -> f64 {
+//     let mean = get_mean(&image); 
+//     let mut variance: f64 = 0.0;
+//     let image_iter = image.pixels(); 
+//     for pixel in image_iter {
+//         let pixel_average = (f64::from(pixel[0]) + f64::from(pixel[1]) + 
+//                 f64::from(pixel[2])) / 3.0;
+//         variance += (pixel_average - mean).powi(2); 
+//     }
+//     variance /= f64::from(image.width()) * f64::from(image.height());
     
-    variance
-}
+//     variance
+// }
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use image::{GenericImage, ImageBuffer, GenericImageView, RgbaImage, GrayAlphaImage, ConvertBuffer, GrayImage, Luma, Rgb, load_from_memory};
+    
     #[test]
     fn test_histogram() {
         let mut image: GrayAlphaImage = ImageBuffer::new(2, 2);
