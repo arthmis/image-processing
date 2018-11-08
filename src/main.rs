@@ -1,20 +1,20 @@
 extern crate image; 
 
-use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel};
+use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel, GrayImage};
 
-struct RgbaHistogram {
+struct RgbHistogram {
     red: [u32; 256],
     green: [u32; 256],
     blue: [u32; 256],
 }
 
-struct GrayHistogram {
+struct LumaHistogram {
     values: [u32; 256],
 }
 
-impl RgbaHistogram {
-    fn new() -> RgbaHistogram{
-        RgbaHistogram {
+impl RgbHistogram {
+    fn new() -> RgbHistogram{
+        RgbHistogram {
             red: [0; 256],
             green: [0; 256],
             blue: [0; 256],
@@ -22,9 +22,9 @@ impl RgbaHistogram {
     }
 }
 
-impl GrayHistogram {
-    fn new() -> GrayHistogram{
-        GrayHistogram {
+impl LumaHistogram {
+    fn new() -> LumaHistogram{
+     LumaHistogram {
             values: [0; 256], 
         }
     }
@@ -47,9 +47,9 @@ fn main() {
     // for i in 0..255 {
     //     println!("{}: {}", i,  &hist.values[i]);
     // }
-    let hist = gray_histogram(&img);
+    let hist = lumaA_histogram(&img);
 
-    img.save("images/gray-london-bridge.jpg").expect("directory or file not found");
+    // img.save("images/gray-london-bridge.jpg").expect("directory or file not found");
     
 
     // let mean = get_mean(&img);
@@ -58,8 +58,8 @@ fn main() {
     // println!("mean: {}\nvariance: {}", mean, variance); 
 }
 
-fn rgba_histogram(image: &RgbaImage) -> RgbaHistogram {
-    let mut histogram = RgbaHistogram::new();
+fn rgba_histogram(image: &RgbaImage) -> RgbHistogram {
+    let mut histogram = RgbHistogram::new();
     for pixel in image.pixels() {
         histogram.red[pixel[0] as usize] += 1;
         histogram.green[pixel[1] as usize] += 1;
@@ -68,8 +68,26 @@ fn rgba_histogram(image: &RgbaImage) -> RgbaHistogram {
     histogram
 }
 
-fn gray_histogram(image: &GrayAlphaImage) -> GrayHistogram {
-    let mut histogram = GrayHistogram::new();
+fn rgb_histogram(image: &RgbaImage) -> RgbHistogram {
+    let mut histogram = RgbHistogram::new();
+    for pixel in image.pixels() {
+        histogram.red[pixel[0] as usize] += 1;
+        histogram.green[pixel[1] as usize] += 1;
+        histogram.blue[pixel[2] as usize] += 1;
+    }
+    histogram
+}
+
+fn lumaA_histogram(image: &GrayAlphaImage) -> LumaHistogram {
+    let mut histogram = LumaHistogram::new();
+    for pixel in image.pixels() {
+        histogram.values[pixel[0] as usize] += 1;
+    }
+    histogram
+}
+
+fn luma_histogram(image: &GrayImage) -> LumaHistogram {
+    let mut histogram = LumaHistogram::new();
     for pixel in image.pixels() {
         histogram.values[pixel[0] as usize] += 1;
     }
@@ -116,7 +134,7 @@ mod tests {
         image.get_pixel_mut(1, 0)[0] = 3; 
         image.get_pixel_mut(1, 1)[0] = 4; 
 
-        let hist = gray_histogram(&image);
+        let hist = lumaA_histogram(&image);
 
         assert_eq!(hist.values[1], 2);
         assert_eq!(hist.values[3], 1);
