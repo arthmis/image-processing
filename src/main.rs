@@ -12,48 +12,55 @@ struct GrayHistogram {
     values: [u32; 256],
 }
 
-struct CumRgbHistogram {
+struct CumuRgbHistogram {
     red: [u32; 256],
     green: [u32; 256],
     blue: [u32; 256],
 }
 
-struct CumGrayHistogram {
+struct CumuGrayHistogram {
     values: [u32; 256],
 }
 
 fn main() {
 
     let img = image::open("images/london-bridge.jpg")
-        .expect("Image not found").to_rgba();
+        .expect("Image not found").to_luma();
 
-    rgba_histogram(&img);
+    // let first_order_integral_image = first_order_integral_image(&img, 10, 5);
+    // let sec_order_integral_image = sec_order_integral_image(&img, 10, 5);
+    // println!("{} {}", first_order_integral_image, sec_order_integral_image);
 
-    // let mut image: GrayAlphaImage = ImageBuffer::new(2, 2);
-
-    // for pix in image.pixels_mut() {
-    //     let channels = pix.channels_mut();
-    //     channels[0] = 100;
-    //     channels[1] = 255;  
-    // }
-
-    // let hist = gray_histogram(&image);
-    // for i in 0..255 {
-    //     println!("{}: {}", i,  &hist.values[i]);
-    // }
-    // let hist = lumaA_histogram(&img);
-
-    // img.save("images/gray-london-bridge.jpg").expect("directory or file not found");
-    
-
-    // let mean = get_mean(&img);
-    // let variance = get_variance(&img);
-
-    // println!("mean: {}\nvariance: {}", mean, variance); 
+    // rgba_histogram(&img);
+ 
 }
 
-fn cumulative_gray_histogram(gray_hist: &GrayHistogram) -> CumGrayHistogram {
-    let mut cum_histogram = CumGrayHistogram {
+// TODO fix first order integral image, implementation
+fn first_order_integral_image(image: &GrayImage) -> u64 {
+    let int_image = 
+    let mut sum: u64 = 0; 
+    for x in 0..column {
+        for y in 0..row {
+            println!("pixel: {}", image.get_pixel(x, y)[0]);
+            sum += u64::from(image.get_pixel(x, y)[0]);
+        }
+    }
+    sum
+}
+
+fn sec_order_integral_image(image: &GrayImage) -> u64 {
+    let mut sum: u64 = 0; 
+    for x in 0..column {
+        for y in 0..row {
+            println!("pixel: {}", image.get_pixel(x, y)[0]);
+            sum += (u64::from(image.get_pixel(x, y)[0])).pow(2);
+        }
+    }
+    sum
+}
+
+fn cumulative_gray_histogram(gray_hist: &GrayHistogram) -> CumuGrayHistogram {
+    let mut cum_histogram = CumuGrayHistogram {
         values: [0_u32; 256],
     };
     let mut sum: u32 = 0; 
@@ -64,8 +71,8 @@ fn cumulative_gray_histogram(gray_hist: &GrayHistogram) -> CumGrayHistogram {
     cum_histogram
 }
 
-fn cumulative_rgb_histogram(rgb_hist: &RgbHistogram) -> CumRgbHistogram {
-    let mut cum_histogram = CumRgbHistogram {
+fn cumulative_rgb_histogram(rgb_hist: &RgbHistogram) -> CumuRgbHistogram {
+    let mut cum_histogram = CumuRgbHistogram {
             red: [0; 256],
             green: [0; 256],
             blue: [0; 256],
