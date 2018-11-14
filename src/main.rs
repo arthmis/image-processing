@@ -1,4 +1,9 @@
-extern crate image; 
+extern crate image;
+extern crate imageproc; 
+
+
+// use imageproc::integral_image;
+use std::ops::Index;
 
 use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel, GrayImage, GenericImage};
 
@@ -22,10 +27,59 @@ struct CumuGrayHistogram {
     values: [u32; 256],
 }
 
+struct IntegralImage {
+    width: u32,
+    height: u32,
+    container: Vec<u32>,
+}
+
+impl IntegralImage {
+    fn new(width: u32, height: u32) -> IntegralImage {
+        IntegralImage {
+            width: width,
+            height: height,
+            container: vec![0; (width * height) as usize],
+        }
+    }
+}
+
+// impl Index<IntegralImage> for IntegralImage {
+//     type Output = u32;
+//     fn index(&self, integral_image: IntegralImage) -> &u32 {
+//         &self.container[index]
+//     }
+// }
+
 fn main() {
 
-    let img = image::open("images/london-bridge.jpg")
-        .expect("Image not found").to_luma();
+    // let img = image::open("images/london-bridge.jpg")
+        // .expect("Image not found").to_luma();
+
+    // let some = integral_image(&img); 
+
+    let my_img = GrayImage::from_raw(
+        4, 
+        3, 
+        vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    ).unwrap(); 
+    let some = integral_image(&my_img);
+    println!();
+    for y in 0..my_img.height() {
+        for x in 0..my_img.width() {
+            print!("{} ", my_img.get_pixel(x, y)[0]);
+        }
+        println!();
+    }
+    println!();
+    for y in 0..=my_img.height() {
+        for x in 0..=my_img.width() {
+            print!("{} ", some.container[(x + y * (my_img.width() + 1)) as usize]);
+        }
+        println!();
+    }
+
+
+    // let thing = integral_image::integral_image(&img);
 
     // let first_order_integral_image = first_order_integral_image(&img, 10, 5);
     // let sec_order_integral_image = sec_order_integral_image(&img, 10, 5);
@@ -35,23 +89,31 @@ fn main() {
  
 }
 
-// TODO fix first order integral image, implementation
-fn first_order_integral_image(image: &GrayImage) -> u64 {
-    let int_image = 
-    let mut sum: u64 = 0; 
-    for x in 0..column {
-        for y in 0..row {
-            println!("pixel: {}", image.get_pixel(x, y)[0]);
-            sum += u64::from(image.get_pixel(x, y)[0]);
+fn integral_image(image: &GrayImage) -> IntegralImage{
+    let width = image.width() + 1;
+    let height = image.height() + 1;
+    let mut integ_image = IntegralImage::new(width, height);
+    unsafe {
+        integ_image.container.set_len((width * height) as usize);
+    }
+    let mut sum: u32 = 0; 
+    for y in 1..height {
+        for x in 1..width {
+            sum += integ_image.container[(x - 1 + y * width) as usize];
+            sum += integ_image.container[(x + (y - 1) * width) as usize];
+            sum -= integ_image.container[(x - 1 + (y - 1) * width) as usize];
+            sum += u32::from(image.get_pixel(x - 1, y - 1)[0]);
+            integ_image.container[(x + y * width) as usize] = sum; 
+            sum = 0;
         }
     }
-    sum
+    integ_image
 }
-
+// TODO fix this implementation using the first one
 fn sec_order_integral_image(image: &GrayImage) -> u64 {
     let mut sum: u64 = 0; 
-    for x in 0..column {
-        for y in 0..row {
+    for x in 0..image.width() {
+        for y in 0..image.height() {
             println!("pixel: {}", image.get_pixel(x, y)[0]);
             sum += (u64::from(image.get_pixel(x, y)[0])).pow(2);
         }
@@ -200,6 +262,7 @@ mod tests {
 
     #[test]
     fn test_rgb_cumulative_histogram() {
+        // let image = GrayImage::from_raw(width: u32, height: u32, buf: Container)
         let mut histogram = RgbHistogram {
             red: [0; 256],
             green: [0; 256],
