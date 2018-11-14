@@ -112,7 +112,8 @@ fn integral_image(image: &GrayImage) -> (IntegralImage, IntegralImage) {
             sum -= integ_image.container[(x - 1 + (y - 1) * width) as usize];
             sum += u32::from(image.get_pixel(x - 1, y - 1)[0]);
             integ_image.container[(x + y * width) as usize] = sum;
-            integ_image_vari.container[(x + y * width) as usize] = sum.pow(2); 
+            integ_image_vari.container[(x + y * width) as usize] = 
+                sum + (u32::from(image.get_pixel(x - 1, y - 1)[0]).pow(2)); 
             sum = 0;
         }
     }
