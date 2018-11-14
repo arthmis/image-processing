@@ -1,5 +1,4 @@
 extern crate image;
-extern crate imageproc; 
 
 
 // use imageproc::integral_image;
@@ -62,7 +61,7 @@ fn main() {
         3, 
         vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     ).unwrap(); 
-    let some = integral_image(&my_img);
+    let (some, thing) = integral_image(&my_img);
     println!();
     for y in 0..my_img.height() {
         for x in 0..my_img.width() {
@@ -74,6 +73,13 @@ fn main() {
     for y in 0..=my_img.height() {
         for x in 0..=my_img.width() {
             print!("{} ", some.container[(x + y * (my_img.width() + 1)) as usize]);
+        }
+        println!();
+    }
+    println!();
+    for y in 0..=my_img.height() {
+        for x in 0..=my_img.width() {
+            print!("{} ", thing.container[(x + y * (my_img.width() + 1)) as usize]);
         }
         println!();
     }
@@ -89,12 +95,14 @@ fn main() {
  
 }
 
-fn integral_image(image: &GrayImage) -> IntegralImage{
+fn integral_image(image: &GrayImage) -> (IntegralImage, IntegralImage) {
     let width = image.width() + 1;
     let height = image.height() + 1;
     let mut integ_image = IntegralImage::new(width, height);
+    let mut integ_image_vari = IntegralImage::new(width, height);
     unsafe {
         integ_image.container.set_len((width * height) as usize);
+        integ_image_vari.container.set_len((width * height) as usize);
     }
     let mut sum: u32 = 0; 
     for y in 1..height {
@@ -103,22 +111,12 @@ fn integral_image(image: &GrayImage) -> IntegralImage{
             sum += integ_image.container[(x + (y - 1) * width) as usize];
             sum -= integ_image.container[(x - 1 + (y - 1) * width) as usize];
             sum += u32::from(image.get_pixel(x - 1, y - 1)[0]);
-            integ_image.container[(x + y * width) as usize] = sum; 
+            integ_image.container[(x + y * width) as usize] = sum;
+            integ_image_vari.container[(x + y * width) as usize] = sum.pow(2); 
             sum = 0;
         }
     }
-    integ_image
-}
-// TODO fix this implementation using the first one
-fn sec_order_integral_image(image: &GrayImage) -> u64 {
-    let mut sum: u64 = 0; 
-    for x in 0..image.width() {
-        for y in 0..image.height() {
-            println!("pixel: {}", image.get_pixel(x, y)[0]);
-            sum += (u64::from(image.get_pixel(x, y)[0])).pow(2);
-        }
-    }
-    sum
+    (integ_image, integ_image_vari)
 }
 
 fn cumulative_gray_histogram(gray_hist: &GrayHistogram) -> CumuGrayHistogram {
