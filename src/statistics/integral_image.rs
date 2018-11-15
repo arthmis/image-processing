@@ -1,4 +1,5 @@
-use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel, GrayImage, GenericImage};
+use image::{GrayImage};
+use drawing::rectangle::Rectangle;
 
 pub struct IntegralImage {
     width: u32,
@@ -23,9 +24,14 @@ impl IntegralImage {
         self.container[(x + y * self.width)  as usize] = new_value;
     }
 
-    // pub fn region(&self, bounding_box: Rect) {
-
-    // }
+    pub fn region_sum(&self, region: Rectangle) -> u32{
+        let top_left_region = self.get_point(region.left, region.top);
+        let top_region = self.get_point(region.right, region.top);
+        let left_region = self.get_point(region.left, region.bottom);
+        let entire_region = self.get_point(region.right, region.bottom);
+ 
+        entire_region + top_left_region - top_region - left_region
+    }
 
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
@@ -62,9 +68,4 @@ pub fn integral_image(image: &GrayImage) -> (IntegralImage, IntegralImage) {
         }
     }
     (integ_image, integ_image_vari)
-}
-
-// TODO impelement this
-pub fn sum_of_region(integral_image: &IntegralImage) -> u32 {
-    unimplemented!();
 }

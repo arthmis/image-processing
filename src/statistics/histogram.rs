@@ -1,4 +1,4 @@
-use image::{ImageBuffer, RgbaImage, GrayAlphaImage, ConvertBuffer, LumaA, Pixel, GrayImage, GenericImage};
+use image::{RgbaImage, GrayAlphaImage, GrayImage};
 
 pub struct RgbHistogram {
     pub red: [u32; 256],
