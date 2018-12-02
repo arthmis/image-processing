@@ -12,3 +12,8 @@ criterion = "0.2"
 [[bench]]
 name = "benchmark"
 harness = false 
+
+[profile.dev]
+opt-level = 3
+debug = true
+incremental = true
