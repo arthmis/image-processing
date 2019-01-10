@@ -34,7 +34,7 @@ pub fn cumulative_gray_histogram(
     cum_histogram
 }
 
-pub fn draw_histogram(image_width: u32, image_height: u32, file: &str, gray_hist: &GrayHistogram) {
+pub fn draw_histogram(image_width: u32, image_height: u32, gray_hist: &GrayHistogram) -> GrayImage {
     let hist_color = {
         let pixel = [90; 1];
         let pixel = Luma(pixel); 
@@ -50,21 +50,21 @@ pub fn draw_histogram(image_width: u32, image_height: u32, file: &str, gray_hist
         max
     };
 
-    let draw_hist = || {    let raw_image_buffer = vec![255; (image_width * image_height) as usize];
-    let mut image: GrayImage = ImageBuffer::from_raw(
-        image_width, image_height, raw_image_buffer)
-            .expect("white image could not be created"); 
-    let step = image_width / 256;
-    for i in 0..255 {
-        let mut y = 255 * gray_hist.values[i] / max_hist_val;
-        y = 255 - y; 
-        image.put_pixel(i as u32, y as u32, hist_color);
-        for n in y..255 {
-            image.put_pixel(i as u32, n as u32, hist_color);
-        } 
-    }
-    image.save(file).expect("couldn't save png image");
-    };
+    // let draw_hist = || {    let raw_image_buffer = vec![255; (image_width * image_height) as usize];
+    // let mut image: GrayImage = ImageBuffer::from_raw(
+    //     image_width, image_height, raw_image_buffer)
+    //         .expect("white image could not be created"); 
+    // let step = image_width / 256;
+    // for i in 0..255 {
+    //     let mut y = 255 * gray_hist.values[i] / max_hist_val;
+    //     y = 255 - y; 
+    //     image.put_pixel(i as u32, y as u32, hist_color);
+    //     for n in y..255 {
+    //         image.put_pixel(i as u32, n as u32, hist_color);
+    //     } 
+    // }
+    // image.save(file).expect("couldn't save png image");
+    // };
 
     // draw_hist(); 
     
@@ -72,31 +72,29 @@ pub fn draw_histogram(image_width: u32, image_height: u32, file: &str, gray_hist
     let mut image: GrayImage = ImageBuffer::from_raw(
         image_width, image_height, raw_image_buffer)
             .expect("white image could not be created"); 
+
+    let hist_height_max = image_height / 256 * 256; 
+
     let step = image_width / 256;
     println!("{}", step);
     let hist_width = step * 256; 
-    let hist_end = image_width - (image_width - hist_width) / 2;
     let hist_begin = 0 + (image_width - hist_width) / 2;  
+
     for i in 0..255 {
-        let mut y = 255 * gray_hist.values[i] / max_hist_val;
-        y = 255 - y; 
+        let mut y = hist_height_max * gray_hist.values[i] / max_hist_val;
+        y = hist_height_max - y; 
         let x_pos = (i as u32) * step + hist_begin;
         for s in 0..step {
             let x = x_pos + s as u32;
             image.put_pixel(x, y, hist_color);
-            println!("{} {} {}", x, s, y);
+            // println!("{} {} {}", x, s, y);
             for n in y..255 {
                 image.put_pixel(x, n as u32, hist_color);
             } 
-         }
-        // image.put_pixel(i as u32, y as u32, hist_color);
-        // for n in y..255 {
-        //     image.put_pixel(i as u32, n as u32, hist_color);
-        // } 
+        }
     }
-    image.save(file).expect("couldn't save png image");
-    
-
+    image
+    // image.save(file).expect("couldn't save png image");
 }
 
 pub fn cumulative_rgb_histogram(rgb_hist: &RgbHistogram) -> CumuRgbHistogram {

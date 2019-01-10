@@ -1,10 +1,12 @@
 [package]
 name = "image_processing"
 version = "0.1.0"
+edition = "2018"
 authors = []
 
 [dependencies]
-image = "0.20.0"
+image = "0.20.1"
+sdl2 = { version = "0.32.1", default-features = false, features = ["bundled"] }
 
 [dev-dependencies]
 criterion = "0.2"
@@ -14,6 +16,6 @@ name = "benchmark"
 harness = false 
 
 [profile.dev]
-opt-level = 3
+opt-level = 2
 debug = true
 incremental = true

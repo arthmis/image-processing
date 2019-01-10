@@ -1,5 +1,5 @@
 use image::{GrayImage};
-use drawing::rectangle::Rectangle;
+use crate::drawing::rectangle::Rectangle;
 
 pub struct IntegralImage {
     width: u32,
