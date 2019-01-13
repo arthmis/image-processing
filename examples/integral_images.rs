@@ -7,7 +7,7 @@ use image_processing::statistics::integral_image::*;
 
 fn main() {
 
-    let img = image::open("images/london-bridge.jpg")
+    let _img = image::open("images/london-bridge.jpg")
         .expect("Image not found").to_luma();
 
     // let some = integral_image(&img); 

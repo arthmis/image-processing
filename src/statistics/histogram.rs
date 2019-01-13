@@ -187,50 +187,50 @@ mod tests {
         assert_eq!(hist.values[4], 1);
     }
 
-    #[test]
-    fn test_rgb_cumulative_histogram() {
-        // let image = GrayImage::from_raw(width: u32, height: u32, buf: Container)
-        let mut histogram = RgbHistogram {
-            red: [0; 256],
-            green: [0; 256],
-            blue: [0; 256],
-        };
-        for i in 0..8 {
-            histogram.red[i] = (i + 1) as u32;
-        }
-        let cumul_hist = cumulative_rgb_histogram(&histogram);
-
-        for i in 0..8 {
-            println!("{}", &cumul_hist.red[i]);
-        }
-        assert_eq!(cumul_hist.red[0], 1);
-        assert_eq!(cumul_hist.red[1], 3);
-        assert_eq!(cumul_hist.red[2], 6);
-        assert_eq!(cumul_hist.red[3], 10);
-        assert_eq!(cumul_hist.red[4], 15);
-        assert_eq!(cumul_hist.red[5], 21);
-        assert_eq!(cumul_hist.red[6], 28);
-        assert_eq!(cumul_hist.red[7], 36);
-    }
-
-    #[test]
-    fn test_gray_cumulative_histogram() {
-        let mut histogram = GrayHistogram { values: [0; 256] };
-        for i in 0..8 {
-            histogram.values[i] = (i + 1) as u32;
-        }
-        let cumul_hist = cumulative_gray_histogram(&histogram);
-
-        for i in 0..8 {
-            println!("{}", &cumul_hist.values[i]);
-        }
-        assert_eq!(cumul_hist.values[0], 1);
-        assert_eq!(cumul_hist.values[1], 3);
-        assert_eq!(cumul_hist.values[2], 6);
-        assert_eq!(cumul_hist.values[3], 10);
-        assert_eq!(cumul_hist.values[4], 15);
-        assert_eq!(cumul_hist.values[5], 21);
-        assert_eq!(cumul_hist.values[6], 28);
-        assert_eq!(cumul_hist.values[7], 36);
-    }
+//     #[test]
+//     fn test_rgb_cumulative_histogram() {
+//         // let image = GrayImage::from_raw(width: u32, height: u32, buf: Container)
+//         let mut histogram = RgbHistogram {
+//             red: [0; 256],
+//             green: [0; 256],
+//             blue: [0; 256],
+//         };
+//         for i in 0..8 {
+//             histogram.red[i] = (i + 1) as u32;
+//         }
+//         let cumul_hist = cumulative_rgb_histogram(&histogram);
+//
+//         for i in 0..8 {
+//             println!("{}", &cumul_hist.red[i]);
+//         }
+//         assert_eq!(cumul_hist.red[0], 1);
+//         assert_eq!(cumul_hist.red[1], 3);
+//         assert_eq!(cumul_hist.red[2], 6);
+//         assert_eq!(cumul_hist.red[3], 10);
+//         assert_eq!(cumul_hist.red[4], 15);
+//         assert_eq!(cumul_hist.red[5], 21);
+//         assert_eq!(cumul_hist.red[6], 28);
+//         assert_eq!(cumul_hist.red[7], 36);
+//     }
+//
+//     #[test]
+//     fn test_gray_cumulative_histogram() {
+//         let mut histogram = GrayHistogram { values: [0; 256] };
+//         for i in 0..8 {
+//             histogram.values[i] = (i + 1) as u32;
+//         }
+//         let cumul_hist = cumulative_gray_histogram(&histogram);
+//
+//         for i in 0..8 {
+//             println!("{}", &cumul_hist.values[i]);
+//         }
+//         assert_eq!(cumul_hist.values[0], 1);
+//         assert_eq!(cumul_hist.values[1], 3);
+//         assert_eq!(cumul_hist.values[2], 6);
+//         assert_eq!(cumul_hist.values[3], 10);
+//         assert_eq!(cumul_hist.values[4], 15);
+//         assert_eq!(cumul_hist.values[5], 21);
+//         assert_eq!(cumul_hist.values[6], 28);
+//         assert_eq!(cumul_hist.values[7], 36);
+//     }
 }

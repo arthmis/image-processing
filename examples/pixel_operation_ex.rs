@@ -1,3 +1,6 @@
+extern crate image_processing;
+extern crate image;
+
 use image_processing::point_operations::invert_grayscale;
 
 use image::ConvertBuffer;

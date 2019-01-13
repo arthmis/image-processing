@@ -11,8 +11,8 @@ const MAX_VALUE: u8 = 255;
 // }
 
 pub fn invert_grayscale(image: &GrayAlphaImage) -> GrayAlphaImage {
-    let mut inverted_image = image.clone();
-    for pixel in image.enumerate_pixels() {
+    let inverted_image = image.clone();
+    for _pixel in image.enumerate_pixels() {
         
         // inverted_image.put_pixel();
     } 
