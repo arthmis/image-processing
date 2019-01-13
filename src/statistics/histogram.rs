@@ -1,4 +1,4 @@
-use image::{RgbaImage, GrayAlphaImage, GrayImage, ImageBuffer, Luma};
+use image::{GrayAlphaImage, GrayImage, ImageBuffer, Luma, RgbaImage};
 
 pub struct RgbHistogram {
     pub red: [u32; 256],
@@ -10,34 +10,32 @@ pub struct GrayHistogram {
     pub values: [u32; 256],
 }
 
-pub struct CumuRgbHistogram {
+pub struct CumulativeRgbHistogram {
     pub red: [u32; 256],
     pub green: [u32; 256],
     pub blue: [u32; 256],
 }
 
-pub struct CumuGrayHistogram {
+pub struct CumulativeGrayHistogram {
     pub values: [u32; 256],
 }
 
-pub fn cumulative_gray_histogram(
-    gray_hist: &GrayHistogram) -> CumuGrayHistogram 
-{
-    let mut cum_histogram = CumuGrayHistogram {
+pub fn cumulative_gray_histogram(gray_hist: &GrayImage) -> CumulativeGrayHistogram {
+    let mut cumulative_histogram = CumulativeGrayHistogram {
         values: [0_u32; 256],
     };
-    let mut sum: u32 = 0; 
-    for i in 0..256 {
-        sum += gray_hist.values[i];
-        cum_histogram.values[i] = sum;
+    let gray_histogram = gray_histogram(gray_hist);
+    for i in 1..256 {
+        cumulative_histogram.values[i as usize] =
+            gray_histogram.values[i as usize] + cumulative_histogram.values[i - 1 as usize];
     }
-    cum_histogram
+    cumulative_histogram
 }
 
 pub fn draw_histogram(image_width: u32, image_height: u32, gray_hist: &GrayHistogram) -> GrayImage {
     let hist_color = {
         let pixel = [90; 1];
-        let pixel = Luma(pixel); 
+        let pixel = Luma(pixel);
         pixel
     };
     let max_hist_val = {
@@ -53,36 +51,35 @@ pub fn draw_histogram(image_width: u32, image_height: u32, gray_hist: &GrayHisto
     // let draw_hist = || {    let raw_image_buffer = vec![255; (image_width * image_height) as usize];
     // let mut image: GrayImage = ImageBuffer::from_raw(
     //     image_width, image_height, raw_image_buffer)
-    //         .expect("white image could not be created"); 
+    //         .expect("white image could not be created");
     // let step = image_width / 256;
     // for i in 0..255 {
     //     let mut y = 255 * gray_hist.values[i] / max_hist_val;
-    //     y = 255 - y; 
+    //     y = 255 - y;
     //     image.put_pixel(i as u32, y as u32, hist_color);
     //     for n in y..255 {
     //         image.put_pixel(i as u32, n as u32, hist_color);
-    //     } 
+    //     }
     // }
     // image.save(file).expect("couldn't save png image");
     // };
 
-    // draw_hist(); 
-    
-    let raw_image_buffer = vec![255; (image_width * image_height) as usize];
-    let mut image: GrayImage = ImageBuffer::from_raw(
-        image_width, image_height, raw_image_buffer)
-            .expect("white image could not be created"); 
+    // draw_hist();
 
-    let hist_height_max = image_height / 256 * 256; 
+    let raw_image_buffer = vec![255; (image_width * image_height) as usize];
+    let mut image: GrayImage = ImageBuffer::from_raw(image_width, image_height, raw_image_buffer)
+        .expect("white image could not be created");
+
+    let histogram_height_max = image_height / 256 * 256;
 
     let step = image_width / 256;
     println!("{}", step);
-    let hist_width = step * 256; 
-    let hist_begin = 0 + (image_width - hist_width) / 2;  
+    let hist_width = step * 256;
+    let hist_begin = 0 + (image_width - hist_width) / 2;
 
     for i in 0..255 {
-        let mut y = hist_height_max * gray_hist.values[i] / max_hist_val;
-        y = hist_height_max - y; 
+        let mut y = histogram_height_max * gray_hist.values[i] / max_hist_val;
+        y = histogram_height_max - y;
         let x_pos = (i as u32) * step + hist_begin;
         for s in 0..step {
             let x = x_pos + s as u32;
@@ -90,41 +87,41 @@ pub fn draw_histogram(image_width: u32, image_height: u32, gray_hist: &GrayHisto
             // println!("{} {} {}", x, s, y);
             for n in y..255 {
                 image.put_pixel(x, n as u32, hist_color);
-            } 
+            }
         }
     }
     image
     // image.save(file).expect("couldn't save png image");
 }
 
-pub fn cumulative_rgb_histogram(rgb_hist: &RgbHistogram) -> CumuRgbHistogram {
-    let mut cum_histogram = CumuRgbHistogram {
-            red: [0; 256],
-            green: [0; 256],
-            blue: [0; 256],
-    };
-
-    let mut red_sum: u32 = 0; 
-    let mut green_sum: u32 = 0; 
-    let mut blue_sum: u32 = 0; 
-
-    for i in 0..256 { 
-        red_sum += rgb_hist.red[i];
-        green_sum += rgb_hist.green[i];
-        blue_sum += rgb_hist.blue[i];
-        cum_histogram.red[i] = red_sum;
-        cum_histogram.green[i] = green_sum;
-        cum_histogram.blue[i] = blue_sum;
-    }
-
-    cum_histogram
-}
+// pub fn cumulative_rgb_histogram(rgb_hist: &RgbHistogram) -> CumulativeRgbHistogram {
+//     let mut cum_histogram = CumulativeRgbHistogram {
+//         red: [0; 256],
+//         green: [0; 256],
+//         blue: [0; 256],
+//     };
+//
+//     let mut red_sum: u32 = 0;
+//     let mut green_sum: u32 = 0;
+//     let mut blue_sum: u32 = 0;
+//
+//     for i in 0..256 {
+//         red_sum += rgb_hist.red[i];
+//         green_sum += rgb_hist.green[i];
+//         blue_sum += rgb_hist.blue[i];
+//         cum_histogram.red[i] = red_sum;
+//         cum_histogram.green[i] = green_sum;
+//         cum_histogram.blue[i] = blue_sum;
+//     }
+//
+//     cum_histogram
+// }
 
 pub fn rgba_histogram(image: &RgbaImage) -> RgbHistogram {
     let mut histogram = RgbHistogram {
-            red: [0; 256],
-            green: [0; 256],
-            blue: [0; 256],
+        red: [0; 256],
+        green: [0; 256],
+        blue: [0; 256],
     };
     for pixel in image.pixels() {
         histogram.red[pixel[0] as usize] += 1;
@@ -136,10 +133,10 @@ pub fn rgba_histogram(image: &RgbaImage) -> RgbHistogram {
 
 pub fn rgb_histogram(image: &RgbaImage) -> RgbHistogram {
     let mut histogram = RgbHistogram {
-            red: [0; 256],
-            green: [0; 256],
-            blue: [0; 256],
-        };
+        red: [0; 256],
+        green: [0; 256],
+        blue: [0; 256],
+    };
 
     for pixel in image.pixels() {
         histogram.red[pixel[0] as usize] += 1;
@@ -150,9 +147,7 @@ pub fn rgb_histogram(image: &RgbaImage) -> RgbHistogram {
 }
 
 pub fn graya_histogram(image: &GrayAlphaImage) -> GrayHistogram {
-    let mut histogram = GrayHistogram {
-        values: [0; 256], 
-    };
+    let mut histogram = GrayHistogram { values: [0; 256] };
 
     for pixel in image.pixels() {
         histogram.values[pixel[0] as usize] += 1;
@@ -161,9 +156,7 @@ pub fn graya_histogram(image: &GrayAlphaImage) -> GrayHistogram {
 }
 
 pub fn gray_histogram(image: &GrayImage) -> GrayHistogram {
-    let mut histogram = GrayHistogram {
-            values: [0; 256], 
-        };
+    let mut histogram = GrayHistogram { values: [0; 256] };
     for pixel in image.pixels() {
         histogram.values[pixel[0] as usize] += 1;
     }
@@ -173,16 +166,19 @@ pub fn gray_histogram(image: &GrayImage) -> GrayHistogram {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{GenericImage, ImageBuffer, GenericImageView, RgbaImage, GrayAlphaImage, ConvertBuffer, GrayImage, Luma, Rgb, load_from_memory};
-    
+    use image::{
+        load_from_memory, ConvertBuffer, GenericImage, GenericImageView, GrayAlphaImage, GrayImage,
+        ImageBuffer, Luma, Rgb, RgbaImage,
+    };
+
     #[test]
     fn test_histogram() {
         let mut image: GrayAlphaImage = ImageBuffer::new(2, 2);
 
-        image.get_pixel_mut(0, 0)[0] = 1; 
-        image.get_pixel_mut(0, 1)[0] = 1; 
-        image.get_pixel_mut(1, 0)[0] = 3; 
-        image.get_pixel_mut(1, 1)[0] = 4; 
+        image.get_pixel_mut(0, 0)[0] = 1;
+        image.get_pixel_mut(0, 1)[0] = 1;
+        image.get_pixel_mut(1, 0)[0] = 3;
+        image.get_pixel_mut(1, 1)[0] = 4;
 
         let hist = graya_histogram(&image);
 
@@ -203,8 +199,8 @@ mod tests {
             histogram.red[i] = (i + 1) as u32;
         }
         let cumul_hist = cumulative_rgb_histogram(&histogram);
-        
-        for i in 0..8{
+
+        for i in 0..8 {
             println!("{}", &cumul_hist.red[i]);
         }
         assert_eq!(cumul_hist.red[0], 1);
@@ -217,17 +213,15 @@ mod tests {
         assert_eq!(cumul_hist.red[7], 36);
     }
 
-        #[test]
+    #[test]
     fn test_gray_cumulative_histogram() {
-        let mut histogram = GrayHistogram {
-            values: [0; 256],
-        };
+        let mut histogram = GrayHistogram { values: [0; 256] };
         for i in 0..8 {
             histogram.values[i] = (i + 1) as u32;
         }
         let cumul_hist = cumulative_gray_histogram(&histogram);
-        
-        for i in 0..8{
+
+        for i in 0..8 {
             println!("{}", &cumul_hist.values[i]);
         }
         assert_eq!(cumul_hist.values[0], 1);
