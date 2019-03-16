@@ -1,4 +1,3 @@
-
 //! Displays an image in a window created by sdl2.
 
 use image::{imageops::resize, RgbaImage};
@@ -17,7 +16,7 @@ use sdl2::{
 /// The minimum window width or height is 150 pixels - input values less than this
 /// will be rounded up to the minimum.
 pub fn display_image(title: &str, image: &RgbaImage, window_width: u32, window_height: u32) {
-    display_multiple_images(&[title], &vec![image], window_width, window_height);
+    display_multiple_images(&[title], &[image], window_width, window_height);
 }
 
 /// Displays the provided RGBA images in new windows.
@@ -30,14 +29,13 @@ pub fn display_multiple_images(
     window_width: u32,
     window_height: u32,
 ) {
-    if images.len() == 0 {
+    if images.is_empty() {
         return;
     }
     let mut window_title = String::new();
     if titles.len() == 1 {
         window_title = String::from(titles[0]);
-    }
-    if titles.len() != images.len() {
+    } else if titles.len() != images.len() {
         println!("Not enough titles for images");
         return;
     }
@@ -53,6 +51,8 @@ pub fn display_multiple_images(
 
     let mut windows: Vec<Window> = Vec::with_capacity(images.len());
     let mut window_visibility: Vec<bool> = Vec::with_capacity(images.len());
+    // TODO rework handling title variants so there isn't so much branching
+    // in this for loop
     for i in 0..images.len() {
         let mut title = String::new();
         if title.len() == 1 {
@@ -255,4 +255,3 @@ fn resize_to_fit(image: &RgbaImage, window_width: u32, window_height: u32) -> Rg
 
     resize(image, width, height, image::FilterType::Triangle)
 }
-
