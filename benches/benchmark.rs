@@ -1,10 +1,10 @@
 #[macro_use]
-extern crate criterion; 
-extern crate image; 
+extern crate criterion;
+extern crate image;
 
 use criterion::Criterion;
 use criterion::Fun;
-use image::{RgbImage};
+use image::RgbImage;
 
 struct RgbHistogram {
     red: [u32; 256],
@@ -13,7 +13,7 @@ struct RgbHistogram {
 }
 
 impl RgbHistogram {
-    fn new() -> RgbHistogram{
+    fn new() -> RgbHistogram {
         RgbHistogram {
             red: [0; 256],
             green: [0; 256],
@@ -33,27 +33,31 @@ fn no_struct_histogram(image: &RgbImage) -> [[u32; 256]; 3] {
 }
 
 fn struct_histogram(image: &RgbImage) -> RgbHistogram {
-    let mut histogram = RgbHistogram::new(); 
+    let mut histogram = RgbHistogram::new();
     for pixel in image.pixels() {
         histogram.red[pixel[0] as usize] += 1;
         histogram.green[pixel[1] as usize] += 1;
         histogram.blue[pixel[2] as usize] += 1;
     }
     histogram
-    
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
     let img = image::open("images/london-bridge.jpg")
-        .expect("Image not found").to_rgb();
+        .expect("Image not found")
+        .to_rgb();
 
-    let rgb_struct_histogram = Fun::new("no_struct", move |b, i: &RgbImage| b.iter(|| no_struct_histogram(&i)));
+    let rgb_struct_histogram = Fun::new("no_struct", move |b, i: &RgbImage| {
+        b.iter(|| no_struct_histogram(&i))
+    });
 
-    let rgb_no_struct_histogram = Fun::new("struct", move |b, i: &RgbImage| b.iter(|| struct_histogram(&i)));
+    let rgb_no_struct_histogram = Fun::new("struct", move |b, i: &RgbImage| {
+        b.iter(|| struct_histogram(&i))
+    });
 
-    let functions = vec!(rgb_no_struct_histogram, rgb_struct_histogram);
+    let functions = vec![rgb_no_struct_histogram, rgb_struct_histogram];
     c.bench_functions("histogram", functions, img);
 }
 
 criterion_group!(benches, criterion_benchmark);
-criterion_main!(benches); 
+criterion_main!(benches);
