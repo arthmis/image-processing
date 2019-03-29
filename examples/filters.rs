@@ -5,19 +5,12 @@ fn main() {
 
     let image = image::open("images/base.jpg").expect("shell not in correct directory").to_luma();
     // let raw_buffer = vec![
-    //     5,  6,  7,  2, 30,
-    //     83, 23, 53, 2,  3,
-    //     5,  5,  5,  5,  5,
-    //     34, 50, 29, 13, 63,
-    //     39, 1,  93, 86, 52
+    //     5,  6,  7,
+    //     83, 23, 53,
+    //     8,  9,  10,
     // ];
-    let raw_buffer = vec![
-        5,  6,  7,
-        83, 23, 53,
-        8,  9,  10,
-    ];
     // let image: GrayImage = ImageBuffer::from_raw(3, 3, raw_buffer).unwrap();
-    let box_filter_image = box_3x3(&image);
+    let box_filter_image = box_3x3(&image, 5, 5);
 
     use image_processing::window;
     use image::ConvertBuffer;

@@ -1,21 +1,40 @@
 use image::GrayImage;
 
-pub fn box_3x3(image: &GrayImage) -> GrayImage {
+pub fn box_3x3(image: &GrayImage, filter_width: u32, filter_height: u32) -> GrayImage {
     let mut new_image = image.clone();
-    // let filter = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+    let filter = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
 
     let image_height = image.height();
     let image_width = image.width();
+
+
+    let filter_width: u32 = 
+        if filter_width % 2 == 0 {
+            filter_width - 1
+        } else {
+            filter_width
+    };
+
+    let filter_height: u32 = 
+        if filter_height % 2 == 0 {
+            filter_height - 1
+        } else {
+            filter_height
+        };
+
+    if filter_width < 3 || filter_height < 3 {
+        return new_image;
+    }
 
     for pixel in image.enumerate_pixels() {
         let x = pixel.0;
         let y = pixel.1;
         let mut sum: f64 = 0.0;
 
-        let begin_x: isize = x as isize - (filter.len() / 2) as isize;
-        let begin_y: isize = y as isize - (filter.len() / 2) as isize;
-        let end_x = begin_x + 3;
-        let end_y = begin_y + 3;
+        let begin_x: isize = x as isize - (filter_width / 2) as isize;
+        let begin_y: isize = y as isize - (filter_height / 2) as isize;
+        let end_x = begin_x + filter_width as isize;
+        let end_y = begin_y + filter_height as isize;
 
         for j in begin_y..end_y {
             for i in begin_x..end_x {
