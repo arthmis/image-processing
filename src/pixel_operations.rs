@@ -171,25 +171,14 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
     let ref_image_cumulative_histogram: [u32; 256] =
         cumulative_gray_histogram(&reference_image).values;
     let ref_image_histogram: [u32; 256] = graya_histogram(&reference_image).values;
-
-    let image_total_pixels = f64::from(new_image.width() * new_image.height());
-    let ref_image_total_pixels = f64::from(reference_image.width() * reference_image.height());
-
-    debug_assert!(
-        image_total_pixels as u32 == image_cumulative_histogram[255],
-        "{} {}",
-        image_total_pixels,
-        image_cumulative_histogram[255]
-    );
-    debug_assert!(
-        ref_image_total_pixels as u32 == ref_image_cumulative_histogram[255],
-        "{} {}",
-        ref_image_total_pixels,
-        ref_image_cumulative_histogram[255]
-    );
+    println!("{}", ref_image_cumulative_histogram[0]);
+    println!("{}", ref_image_cumulative_histogram[1]);
 
     let mut image_cumulative_distribution_function: [f64; 256] = [0.0; 256];
     let mut ref_image_cumulative_distribution_function: [f64; 256] = [0.0; 256];
+
+    let image_total_pixels = image_cumulative_histogram[255] as f64;
+    let ref_image_total_pixels = ref_image_cumulative_histogram[255] as f64;
 
     for (dist_val, hist_val) in image_cumulative_distribution_function
         .iter_mut()
@@ -205,96 +194,99 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
         *dist_val = f64::from(*hist_val) / ref_image_total_pixels;
     }
 
-    for ((i, cdf), cumulative) in ref_image_cumulative_distribution_function.iter().enumerate().zip(ref_image_cumulative_histogram.iter()) {
-        println!("index: {}, cdf: {}, cumulative: {} hist: {}", i, cdf, cumulative, ref_image_histogram[i]);
-    }
+    // for ((i, cdf), cumulative) in ref_image_cumulative_distribution_function.iter().enumerate().zip(ref_image_cumulative_histogram.iter()) {
+    //     println!("index: {}, cdf: {}, cumulative: {} hist: {}", i, cdf, cumulative, ref_image_histogram[i]);
+    // }
 
     // create piecewise linear distribution for reference image
-    let ref_begin_value: (u8, f64) = (0, ref_image_cumulative_distribution_function[0]);
-    let ref_end_value: (u8, f64) = (255, 1.0);
-
     let piecewise_linear_distribution_points: [(u8, f64); 6] = [
-        ref_begin_value,
+        (0, ref_image_cumulative_distribution_function[0]),
         (28, ref_image_cumulative_distribution_function[28]),
         (75, ref_image_cumulative_distribution_function[75]),
         (150, ref_image_cumulative_distribution_function[150]),
         (210, ref_image_cumulative_distribution_function[210]),
-        ref_end_value,
+        (255, 1.0),
+    ];
+    
+    let piecewise_linear_control_points: [(u8, u32); 6] = [
+        (0, ref_image_histogram[0]),
+        (28, ref_image_histogram[28]),
+        (75, ref_image_histogram[75]),
+        (150, ref_image_histogram[150]),
+        (210, ref_image_histogram[210]),
+        (255, ref_image_histogram[255]),
     ];
     let mut piecewise_linear_distribution: [f64; 256] = [0.0; 256];
 
     for (i, value) in piecewise_linear_distribution.iter_mut().enumerate() {
-        for (j, point) in piecewise_linear_distribution_points.iter().enumerate() {
-            if point.0 == 255 {
-                *value = 1.0;
-                break;
-            }
-
-            let next_point = piecewise_linear_distribution_points[j + 1];
-            if (i as u8) >= point.0 && (i as u8) < next_point.0 {
-                // println!("i: {}, Pm: {}, Pm+1: {}, Am: {}, Am+1: {}\n", i, point.1, next_point.1, point.0, next_point.0);
-                *value = point.1
-                    + (i as f64 - f64::from(point.0)) * (next_point.1 - point.1)
+        if i == 255 {
+            *value = 1.0;
+            // break;
+        } else {
+            for (j, point) in piecewise_linear_distribution_points.iter().enumerate().rev() {
+                if point.0 <= i as u8 {
+                    let next_point = piecewise_linear_distribution_points[j + 1];
+                    *value = point.1
+                        + (i as f64 - f64::from(point.0)) 
+                        * (next_point.1 - point.1)
                         / f64::from(next_point.0 - point.0);
-                break;
+                    break;
+                    // println!("next point: {:?}\npoint: {:?}\ni: {}\n", next_point, point, i);
+                    // break;
+                }
             }
         }
+        // println!("i: {}", i);
     }
 
-    // println!("{}", piecewise_linear_distribution);
-    // for val in piecewise_linear_distribution.iter() {
-    //     println!("{}", val);
-    // }
-    println!();
+    for val in piecewise_linear_distribution.iter() {
+        println!("{}", val);
+    }
 
     // create linear distribution inverse
     let mut piecewise_linear_distribution_inverse: [u8; 256] = [0; 256];
 
-    for ((i, dist_val), dist_val_inverse) in piecewise_linear_distribution
-        .iter()
-        .enumerate()
-        .zip(piecewise_linear_distribution_inverse.iter_mut())
-    {
-        // println!("Pl[0]: {}", piecewise_linear_distribution[0]);
-        if *dist_val < piecewise_linear_distribution[0] && *dist_val >= 0.0 {
-            *dist_val_inverse = 0.0 as u8;
-        } else if *dist_val >= 1.0 {
-            *dist_val_inverse = 255.0 as u8;
+    // (might not be true) reference piecewise distribution is actually given as a regular histogram, not a cumulative histogram or cumulative distribution
+    // b is from the original cumulative distribution function for the original image
+    for ((i, inverse_value), b) in piecewise_linear_distribution_inverse.iter_mut().enumerate().zip(image_cumulative_distribution_function.iter()) {
+        if *b <= piecewise_linear_distribution_points[0].1 as f64 {
+            *inverse_value = 0;
+        } else if *b >= 1.0 {
+            *inverse_value = 255;
         } else {
-            for (j, point) in piecewise_linear_distribution_points.iter().enumerate() {
-                let next_point = piecewise_linear_distribution_points[j + 1];
-                if (i as u8) >= point.0 && (i as u8) <= next_point.0 {
-                    // let b = *dist_val;
-                    // let An = point.0;
-                    let numerator = f64::from(next_point.0 - point.0);
-                    let denominator = next_point.1 - point.1;
-                    let b_minus_Pn = *dist_val - point.1;
-                    println!("b - Pn: {}, numerator: {}, denominator: {}", b_minus_Pn, numerator, denominator);
-                    let val = f64::from(point.0)
-                        + (*dist_val - point.1) * f64::from(next_point.0 - point.0)
-                            / (next_point.1 - point.1);
-                    *dist_val_inverse = val as u8;
-                    println!("i: {}, Pn: {}, Pn+1: {}, An: {}, An+1: {} val: {}", i, point.1, next_point.1, point.0, next_point.0, val);
+            for (j, point) in piecewise_linear_distribution_points.iter().enumerate().rev() {
+
+                if point.1 <= *b {
+                    let next_point = piecewise_linear_distribution_points[j + 1];
+                    *inverse_value = (point.0 as f64
+                        + (*b - point.1) 
+                        * f64::from(next_point.0 - point.0)
+                        / (next_point.1 - point.1))
+                        .round() as u8;
+                    // println!("next point: {:?}", next_point);
+                    // println!("point: {:?}", point);
+                    // println!("i: {}", i);
+                    // println!("b: {}", b);
+                    // println!("inverse value: {}", inverse_value);
+                    // println!();
                     break;
                 }
             }
-        }
+        } 
     }
 
-    println!("min pixel: {}", min(&reference_image));
+
+
+    // println!("min pixel: {}", min(&reference_image));
 
     // for val in piecewise_linear_distribution_inverse.iter() {
     //     println!("{}", val);
     // }
 
     for pixel in new_image.pixels_mut() {
-        pixel.data[0] = piecewise_linear_distribution_inverse[pixel.data[0] as usize];
+        let old_pixel_value = pixel.data[0];
+        pixel.data[0] = piecewise_linear_distribution_inverse[old_pixel_value as usize];
     }
-    // match with piecewise linear distribution
-
-    // for i in 0..256 {
-    //     image_cumulative_distribution_function[i] = f64::from(image_cumulative_histogram.values[i]) / f64::from(image_total_pixels);
-    // }
 
     new_image
 }
