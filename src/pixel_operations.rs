@@ -158,8 +158,10 @@ pub fn equalize_histogram(image: &GrayAlphaImage) -> GrayAlphaImage {
 
 // TODO make this more efficient by calculating cumulative distribution function when
 // calculating the histogram via the function found on pg. 67
-// also correct because it currently doesn't work correctly
 // and add documentation for it
+// make it possible to pass in your own distribution as a histogram of any size less than 256
+// make it generic over the control points that are parameters for this function
+// make an inplace version of this function
 pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image: &GrayAlphaImage) -> GrayAlphaImage {
     use crate::statistics::histogram::cumulative_gray_histogram;
     use crate::statistics::histogram::graya_histogram;
@@ -194,10 +196,6 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
         *dist_val = f64::from(*hist_val) / ref_image_total_pixels;
     }
 
-    // for ((i, cdf), cumulative) in ref_image_cumulative_distribution_function.iter().enumerate().zip(ref_image_cumulative_histogram.iter()) {
-    //     println!("index: {}, cdf: {}, cumulative: {} hist: {}", i, cdf, cumulative, ref_image_histogram[i]);
-    // }
-
     // create piecewise linear distribution for reference image
     let piecewise_linear_distribution_points: [(u8, f64); 6] = [
         (0, ref_image_cumulative_distribution_function[0]),
@@ -208,14 +206,6 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
         (255, 1.0),
     ];
     
-    let piecewise_linear_control_points: [(u8, u32); 6] = [
-        (0, ref_image_histogram[0]),
-        (28, ref_image_histogram[28]),
-        (75, ref_image_histogram[75]),
-        (150, ref_image_histogram[150]),
-        (210, ref_image_histogram[210]),
-        (255, ref_image_histogram[255]),
-    ];
     let mut piecewise_linear_distribution: [f64; 256] = [0.0; 256];
 
     for (i, value) in piecewise_linear_distribution.iter_mut().enumerate() {
@@ -231,12 +221,9 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
                         * (next_point.1 - point.1)
                         / f64::from(next_point.0 - point.0);
                     break;
-                    // println!("next point: {:?}\npoint: {:?}\ni: {}\n", next_point, point, i);
-                    // break;
                 }
             }
         }
-        // println!("i: {}", i);
     }
 
     for val in piecewise_linear_distribution.iter() {
@@ -246,8 +233,6 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
     // create linear distribution inverse
     let mut piecewise_linear_distribution_inverse: [u8; 256] = [0; 256];
 
-    // (might not be true) reference piecewise distribution is actually given as a regular histogram, not a cumulative histogram or cumulative distribution
-    // b is from the original cumulative distribution function for the original image
     for ((i, inverse_value), b) in piecewise_linear_distribution_inverse.iter_mut().enumerate().zip(image_cumulative_distribution_function.iter()) {
         if *b <= piecewise_linear_distribution_points[0].1 as f64 {
             *inverse_value = 0;
@@ -263,25 +248,11 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
                         * f64::from(next_point.0 - point.0)
                         / (next_point.1 - point.1))
                         .round() as u8;
-                    // println!("next point: {:?}", next_point);
-                    // println!("point: {:?}", point);
-                    // println!("i: {}", i);
-                    // println!("b: {}", b);
-                    // println!("inverse value: {}", inverse_value);
-                    // println!();
                     break;
                 }
             }
         } 
     }
-
-
-
-    // println!("min pixel: {}", min(&reference_image));
-
-    // for val in piecewise_linear_distribution_inverse.iter() {
-    //     println!("{}", val);
-    // }
 
     for pixel in new_image.pixels_mut() {
         let old_pixel_value = pixel.data[0];
