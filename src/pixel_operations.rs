@@ -99,16 +99,12 @@ pub fn modified_auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
     new_image
 }
 
-/// automatic contrast adjustment
-// TODO continue tweaking this to work better and use modified auto contrast
-// consider creating an alternate function that accepts lower and upper bound for
-// contrast range
-pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
-    let mut new_image = image.clone();
-
+/// auto contrast enhancement by mapping the lowest and highest pixel to minimum 
+/// and maximum intensity values, respectively, and restributing the rest of the pixels
+pub fn auto_contrast_mut(image: &mut GrayAlphaImage) {
     let min_pixel = {
         let mut min: u8 = MAX_VALUE;
-        for pixel in new_image.pixels() {
+        for pixel in image.pixels() {
             if pixel.data[0 as usize] < min {
                 min = pixel.data[0 as usize];
             }
@@ -118,7 +114,7 @@ pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
 
     let max_pixel = {
         let mut max: u8 = MIN_VALUE;
-        for pixel in new_image.pixels() {
+        for pixel in image.pixels() {
             if pixel.data[0 as usize] > max {
                 max = pixel.data[0 as usize];
             }
@@ -126,7 +122,7 @@ pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
         f64::from(max)
     };
 
-    for pixel in new_image.pixels_mut() {
+    for pixel in image.pixels_mut() {
         let pixel_value = f64::from(pixel.data[0]);
         let new_pixel_value = f64::from(MIN_VALUE)
             + (pixel_value - min_pixel) * f64::from(MAX_VALUE)
@@ -135,6 +131,16 @@ pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
         let new_pixel_value = clamp_pixel(new_pixel_value);
         pixel.data[0] = new_pixel_value;
     }
+}
+
+/// automatic contrast adjustment
+// TODO continue tweaking this to work better and use modified auto contrast
+// consider creating an alternate function that accepts lower and upper bound for
+// contrast range
+/// see auto contrast mut
+pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
+    let mut new_image = image.clone();
+    auto_contrast_mut(&mut new_image);
     new_image
 }
 
@@ -145,6 +151,12 @@ pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
 /// brightness range is [-256, 255] inclusive
 /// negative values decrease brightness
 pub fn brightness(image: &GrayAlphaImage, brightness: i16) -> GrayAlphaImage {
+    let mut new_image = image.clone();
+    brightness_mut(&mut new_image, brightness);
+    new_image
+}
+
+pub fn brightness_mut(image: &mut GrayAlphaImage, brightness: i16) {
     let brightness = if brightness > i16::from(MAX_VALUE) {
         255_i64
     } else if brightness < -256 {
@@ -153,29 +165,18 @@ pub fn brightness(image: &GrayAlphaImage, brightness: i16) -> GrayAlphaImage {
         i64::from(brightness)
     };
 
-    let mut new_image = image.clone();
-
-    for pixel in image.enumerate_pixels() {
-        let new_pixel_value = i64::from(pixel.2.data[0 as usize]) + brightness;
+    for pixel in image.pixels_mut() {
+        let new_pixel_value = i64::from(pixel.data[0]) + brightness;
         let new_pixel_value: u8 = clamp_pixel(new_pixel_value);
-        let new_pixel = LumaA([new_pixel_value as u8, MAX_VALUE]);
-        new_image.put_pixel(pixel.0, pixel.1, new_pixel);
+        pixel.data[0] = new_pixel_value;
     }
 
-    new_image
 }
 
 /// inverts image in place
 pub fn invert_grayscale_mut(image: &mut GrayAlphaImage) {
-    // for y in 0..image.height() {
-    //     for x in 0..image.width() {
-    //         let mut pixel = image.get_pixel_mut(x, y);
-    //         pixel.data[0 as usize] = MAX_VALUE - pixel.data[0 as usize];
-    //         pixel.data[1 as usize] = MAX_VALUE;
-    //     }
-    // }
-    for pixel in image.enumerate_pixels_mut() {
-        pixel.2.data[0 as usize] = MAX_VALUE - pixel.2.data[0 as usize];
+    for pixel in image.pixels_mut() {
+        pixel.data[0] = MAX_VALUE - pixel.data[0];
     }
 }
 
@@ -188,11 +189,11 @@ pub fn invert_grayscale(image: &GrayAlphaImage) -> GrayAlphaImage {
 
 /// thresholds image in place
 pub fn threshold_mut(image: &mut GrayAlphaImage, threshold: u8) {
-    for pixel in image.enumerate_pixels_mut() {
-        if pixel.2.data[0 as usize] < threshold {
-            pixel.2.data[0 as usize] = MIN_VALUE;
+    for pixel in image.pixels_mut() {
+        if pixel.data[0 as usize] < threshold {
+            pixel.data[0 as usize] = MIN_VALUE;
         } else {
-            pixel.2.data[0 as usize] = MAX_VALUE;
+            pixel.data[0 as usize] = MAX_VALUE;
         }
     }
 }
@@ -204,13 +205,13 @@ pub fn threshold(image: &GrayAlphaImage, threshold: u8) -> GrayAlphaImage {
     threshold_image
 }
 
+// TODO create mutable version of this
 /// approximately equalize histogram
 pub fn equalize_histogram(image: &GrayAlphaImage) -> GrayAlphaImage {
     use crate::statistics::histogram::cumulative_gray_histogram;
 
     let mut new_image = image.clone();
     let cumulative_hist = cumulative_gray_histogram(image);
-    // let hist = graya_histogram(image);
     let image_width: f64 = f64::from(new_image.width());
     let image_height: f64 = f64::from(new_image.height());
 
@@ -280,7 +281,6 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
     for (i, value) in piecewise_linear_distribution.iter_mut().enumerate() {
         if i == 255 {
             *value = 1.0;
-            // break;
         } else {
             for (j, point) in piecewise_linear_distribution_points.iter().enumerate().rev() {
                 if point.0 <= i as u8 {
