@@ -19,11 +19,7 @@ fn main() {
     let histogram_specification = match_piecewise_linear_histogram(&img, &next_img);
 
     display_multiple_images(
-        &[
-            "base",
-            "histogram specification",
-            "target image",
-        ],
+        &["base", "histogram specification", "target image"],
         &[
             &img.convert(),
             &histogram_specification.convert(),
@@ -34,6 +30,8 @@ fn main() {
     );
 
     img.save("images/base.jpg").unwrap();
-    histogram_specification.save("images/matched_histogram.jpg").unwrap();
+    histogram_specification
+        .save("images/matched_histogram.jpg")
+        .unwrap();
     next_img.save("images/reference_image.jpg").unwrap();
 }

@@ -12,7 +12,7 @@ pub struct Region {
 
 impl Region {
     pub fn new(width: u32, height: u32) -> Region {
-        Region { width, height}
+        Region { width, height }
     }
 }
 

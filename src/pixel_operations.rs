@@ -31,12 +31,12 @@ pub fn contrast(image: &GrayAlphaImage, contrast: u8) -> GrayAlphaImage {
 }
 
 // also consider making alternative that accepts hi and lo range for percentage ranges of pixels
-// decide which auto contrast function to keep or keep both and see if there is use for the 
+// decide which auto contrast function to keep or keep both and see if there is use for the
 // unmodified version
 
 /// saturates percentage of pixels from the bottom and top of the image intensity spectrum
-/// then linearly distributes the pixels within that spectrum 
-pub fn modified_auto_contrast_mut (image: &mut GrayAlphaImage) {
+/// then linearly distributes the pixels within that spectrum
+pub fn modified_auto_contrast_mut(image: &mut GrayAlphaImage) {
     use crate::statistics::histogram::cumulative_gray_histogram;
 
     let (percentage_min, percentage_max) = (0.01_f64, 0.01_f64);
@@ -81,14 +81,12 @@ pub fn modified_auto_contrast_mut (image: &mut GrayAlphaImage) {
             pixel.data[0] = MAX_VALUE;
         } else {
             let new_pixel_value = f64::from(MIN_VALUE)
-                + (pixel_value - image_min_value as f64) 
-                * f64::from(MAX_VALUE)
-                / (image_max_value - image_min_value) as f64;
+                + (pixel_value - image_min_value as f64) * f64::from(MAX_VALUE)
+                    / (image_max_value - image_min_value) as f64;
             let new_pixel_value = new_pixel_value.round() as i64;
             let new_pixel_value = clamp_pixel(new_pixel_value);
             pixel.data[0] = new_pixel_value;
         }
-
     }
 }
 
@@ -99,7 +97,7 @@ pub fn modified_auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
     new_image
 }
 
-/// auto contrast enhancement by mapping the lowest and highest pixel to minimum 
+/// auto contrast enhancement by mapping the lowest and highest pixel to minimum
 /// and maximum intensity values, respectively, and restributing the rest of the pixels
 pub fn auto_contrast_mut(image: &mut GrayAlphaImage) {
     let min_pixel = {
@@ -125,8 +123,7 @@ pub fn auto_contrast_mut(image: &mut GrayAlphaImage) {
     for pixel in image.pixels_mut() {
         let pixel_value = f64::from(pixel.data[0]);
         let new_pixel_value = f64::from(MIN_VALUE)
-            + (pixel_value - min_pixel) * f64::from(MAX_VALUE)
-                / (max_pixel - min_pixel);
+            + (pixel_value - min_pixel) * f64::from(MAX_VALUE) / (max_pixel - min_pixel);
         let new_pixel_value = new_pixel_value.round() as i64;
         let new_pixel_value = clamp_pixel(new_pixel_value);
         pixel.data[0] = new_pixel_value;
@@ -143,7 +140,6 @@ pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
     auto_contrast_mut(&mut new_image);
     new_image
 }
-
 
 // TODO add brightness mut function
 
@@ -170,7 +166,6 @@ pub fn brightness_mut(image: &mut GrayAlphaImage, brightness: i16) {
         let new_pixel_value: u8 = clamp_pixel(new_pixel_value);
         pixel.data[0] = new_pixel_value;
     }
-
 }
 
 /// inverts image in place
@@ -228,14 +223,17 @@ pub fn equalize_histogram(image: &GrayAlphaImage) -> GrayAlphaImage {
     new_image
 }
 
-// TODO make this more efficient by calculating cumulative distribution function when
+// TODO make this more efficient by calculating cumulative distribution function when(benchmark it first to be sure)
 // calculating the histogram via the function found on pg. 67
 // and add documentation for it
 // make it possible to pass in your own distribution as a histogram of any size less than 256
 // make it generic over the control points that are parameters for this function
 // make an inplace version of this function
 // rename variables appropriately
-pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image: &GrayAlphaImage) -> GrayAlphaImage {
+pub fn match_piecewise_linear_histogram(
+    image: &GrayAlphaImage,
+    reference_image: &GrayAlphaImage,
+) -> GrayAlphaImage {
     use crate::statistics::histogram::cumulative_gray_histogram;
     use crate::statistics::histogram::graya_histogram;
 
@@ -243,81 +241,80 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
 
     // calculate cumulative distribution functions for both images
     let image_cumulative_histogram: [u32; 256] = cumulative_gray_histogram(&new_image).values;
-    let ref_image_cumulative_histogram: [u32; 256] =
+    let reference_image_cumulative_histogram: [u32; 256] =
         cumulative_gray_histogram(&reference_image).values;
 
-    let mut image_cumulative_distribution_function: [f64; 256] = [0.0; 256];
-    let mut ref_image_cumulative_distribution_function: [f64; 256] = [0.0; 256];
+    let image_total_pixels = {
+        let (width, height) = image.dimensions();
+        (width * height) as f64
+    };
 
-    let image_total_pixels = image_cumulative_histogram[255] as f64;
-    let ref_image_total_pixels = ref_image_cumulative_histogram[255] as f64;
+    let reference_image_total_pixels = {
+        let (width, height) = reference_image.dimensions();
+        (width * height) as f64
+    };
 
-    for (dist_val, hist_val) in image_cumulative_distribution_function
-        .iter_mut()
-        .zip(image_cumulative_histogram.iter())
-    {
-        *dist_val = f64::from(*hist_val) / image_total_pixels;
-    }
+    let image_cumulative_distribution_function: [f64; 256] = {
+        let mut cdf: [f64; 256] = [0.0; 256];
+        for (dist_val, hist_val) in cdf.iter_mut().zip(image_cumulative_histogram.iter()) {
+            *dist_val = f64::from(*hist_val) / image_total_pixels;
+        }
+        cdf
+    };
 
-    for (dist_val, hist_val) in ref_image_cumulative_distribution_function
-        .iter_mut()
-        .zip(ref_image_cumulative_histogram.iter())
-    {
-        *dist_val = f64::from(*hist_val) / ref_image_total_pixels;
-    }
+    let mut reference_image_cumulative_distribution_function: [f64; 256] = {
+        let mut cdf: [f64; 256] = [0.0; 256];
+
+        for (dist_val, hist_val) in cdf
+            .iter_mut()
+            .zip(reference_image_cumulative_histogram.iter())
+        {
+            *dist_val = f64::from(*hist_val) / reference_image_total_pixels;
+        }
+        cdf
+    };
 
     // create piecewise linear distribution for reference image
     let piecewise_linear_distribution_points: [(u8, f64); 6] = [
-        (0, ref_image_cumulative_distribution_function[0]),
-        (28, ref_image_cumulative_distribution_function[28]),
-        (75, ref_image_cumulative_distribution_function[75]),
-        (150, ref_image_cumulative_distribution_function[150]),
-        (210, ref_image_cumulative_distribution_function[210]),
+        (0, reference_image_cumulative_distribution_function[0]),
+        (28, reference_image_cumulative_distribution_function[28]),
+        (75, reference_image_cumulative_distribution_function[75]),
+        (150, reference_image_cumulative_distribution_function[150]),
+        (210, reference_image_cumulative_distribution_function[210]),
         (255, 1.0),
     ];
-    
-    let mut piecewise_linear_distribution: [f64; 256] = [0.0; 256];
 
-    for (i, value) in piecewise_linear_distribution.iter_mut().enumerate() {
-        if i == 255 {
-            *value = 1.0;
-        } else {
-            for (j, point) in piecewise_linear_distribution_points.iter().enumerate().rev() {
-                if point.0 <= i as u8 {
-                    let next_point = piecewise_linear_distribution_points[j + 1];
-                    *value = point.1
-                        + (i as f64 - f64::from(point.0)) 
-                        * (next_point.1 - point.1)
-                        / f64::from(next_point.0 - point.0);
-                    break;
+    // create linear distribution inverse
+    let piecewise_linear_distribution_inverse: [u8; 256] = {
+        let mut linear_inverse_distribution: [u8; 256] = [0; 256];
+        for ((i, inverse_value), b) in linear_inverse_distribution
+            .iter_mut()
+            .enumerate()
+            .zip(image_cumulative_distribution_function.iter())
+        {
+            if *b <= piecewise_linear_distribution_points[0].1 as f64 {
+                *inverse_value = 0;
+            } else if *b >= 1.0 {
+                *inverse_value = 255;
+            } else {
+                for (j, point) in piecewise_linear_distribution_points
+                    .iter()
+                    .enumerate()
+                    .rev()
+                {
+                    if point.1 <= *b {
+                        let next_point = piecewise_linear_distribution_points[j + 1];
+                        *inverse_value = (point.0 as f64
+                            + (*b - point.1) * f64::from(next_point.0 - point.0)
+                                / (next_point.1 - point.1))
+                            .round() as u8;
+                        break;
+                    }
                 }
             }
         }
-    }
-
-    // create linear distribution inverse
-    let mut piecewise_linear_distribution_inverse: [u8; 256] = [0; 256];
-
-    for ((i, inverse_value), b) in piecewise_linear_distribution_inverse.iter_mut().enumerate().zip(image_cumulative_distribution_function.iter()) {
-        if *b <= piecewise_linear_distribution_points[0].1 as f64 {
-            *inverse_value = 0;
-        } else if *b >= 1.0 {
-            *inverse_value = 255;
-        } else {
-            for (j, point) in piecewise_linear_distribution_points.iter().enumerate().rev() {
-
-                if point.1 <= *b {
-                    let next_point = piecewise_linear_distribution_points[j + 1];
-                    *inverse_value = (point.0 as f64
-                        + (*b - point.1) 
-                        * f64::from(next_point.0 - point.0)
-                        / (next_point.1 - point.1))
-                        .round() as u8;
-                    break;
-                }
-            }
-        } 
-    }
+        linear_inverse_distribution
+    };
 
     for pixel in new_image.pixels_mut() {
         let old_pixel_value = pixel.data[0];
@@ -350,7 +347,7 @@ fn min(image: &GrayAlphaImage) -> u8 {
     for pixel in image.pixels() {
         if pixel[0] < min {
             min = pixel[0];
-        } 
+        }
     }
     min
 }
