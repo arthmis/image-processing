@@ -11,7 +11,7 @@ const MIN_VALUE: u8 = 0;
 /// values from 0-99 decrease contrast and 100-200 increase contrast
 pub fn contrast(image: &GrayAlphaImage, contrast: u8) -> GrayAlphaImage {
     let contrast: f32 = {
-        let mut normalized_contrast = if contrast > 199 {
+        let normalized_contrast = if contrast > 199 {
             200.0
         } else {
             f32::from(contrast)
@@ -21,7 +21,7 @@ pub fn contrast(image: &GrayAlphaImage, contrast: u8) -> GrayAlphaImage {
 
     let mut new_image = image.clone();
     for pixel in new_image.pixels_mut() {
-        let mut new_pixel_value = (f32::from(pixel.data[0 as usize]) - 128.0) * contrast + 128.0;
+        let new_pixel_value = (f32::from(pixel.data[0 as usize]) - 128.0) * contrast + 128.0;
         let new_pixel_value = new_pixel_value.round() as i64;
         let new_pixel_value = clamp_pixel(new_pixel_value);
         pixel.data[0 as usize] = new_pixel_value;
@@ -37,36 +37,38 @@ pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
     let mut new_image = image.clone();
 
     let min_pixel = {
-        let mut min: u8 = 255;
+        let mut min: u8 = MAX_VALUE;
         for pixel in new_image.pixels() {
             if pixel.data[0 as usize] < min {
                 min = pixel.data[0 as usize];
             }
         }
-        f32::from(min)
+        f64::from(min)
     };
 
     let max_pixel = {
-        let mut max: u8 = 0;
+        let mut max: u8 = MIN_VALUE;
         for pixel in new_image.pixels() {
             if pixel.data[0 as usize] > max {
                 max = pixel.data[0 as usize];
             }
         }
-        f32::from(max)
+        f64::from(max)
     };
 
     for pixel in new_image.pixels_mut() {
         // dbg!(pixel);
-        let mut new_pixel_value = f32::from(MIN_VALUE)
-            + (f32::from(pixel.data[0 as usize]) - min_pixel) * f32::from(MIN_VALUE)
+        let pixel_value = f64::from(pixel.data[0]);
+        let new_pixel_value = f64::from(MIN_VALUE)
+            + (pixel_value - min_pixel) * f64::from(MAX_VALUE)
                 / (max_pixel - min_pixel);
         let new_pixel_value = new_pixel_value.round() as i64;
         let new_pixel_value = clamp_pixel(new_pixel_value);
-        pixel.data[0 as usize] = new_pixel_value;
+        pixel.data[0] = new_pixel_value;
     }
     new_image
 }
+
 
 // TODO add brightness mut function
 
@@ -85,7 +87,7 @@ pub fn brightness(image: &GrayAlphaImage, brightness: i16) -> GrayAlphaImage {
     let mut new_image = image.clone();
 
     for pixel in image.enumerate_pixels() {
-        let mut new_pixel_value = i64::from(pixel.2.data[0 as usize]) + brightness;
+        let new_pixel_value = i64::from(pixel.2.data[0 as usize]) + brightness;
         let new_pixel_value: u8 = clamp_pixel(new_pixel_value);
         let new_pixel = LumaA([new_pixel_value as u8, MAX_VALUE]);
         new_image.put_pixel(pixel.0, pixel.1, new_pixel);
@@ -162,6 +164,7 @@ pub fn equalize_histogram(image: &GrayAlphaImage) -> GrayAlphaImage {
 // make it possible to pass in your own distribution as a histogram of any size less than 256
 // make it generic over the control points that are parameters for this function
 // make an inplace version of this function
+// rename variables appropriately
 pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image: &GrayAlphaImage) -> GrayAlphaImage {
     use crate::statistics::histogram::cumulative_gray_histogram;
     use crate::statistics::histogram::graya_histogram;
@@ -172,9 +175,6 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
     let image_cumulative_histogram: [u32; 256] = cumulative_gray_histogram(&new_image).values;
     let ref_image_cumulative_histogram: [u32; 256] =
         cumulative_gray_histogram(&reference_image).values;
-    let ref_image_histogram: [u32; 256] = graya_histogram(&reference_image).values;
-    println!("{}", ref_image_cumulative_histogram[0]);
-    println!("{}", ref_image_cumulative_histogram[1]);
 
     let mut image_cumulative_distribution_function: [f64; 256] = [0.0; 256];
     let mut ref_image_cumulative_distribution_function: [f64; 256] = [0.0; 256];
@@ -226,10 +226,6 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
         }
     }
 
-    for val in piecewise_linear_distribution.iter() {
-        println!("{}", val);
-    }
-
     // create linear distribution inverse
     let mut piecewise_linear_distribution_inverse: [u8; 256] = [0; 256];
 
@@ -260,6 +256,10 @@ pub fn match_piecewise_linear_histogram(image: &GrayAlphaImage, reference_image:
     }
 
     new_image
+}
+
+pub fn histogram_matching(image: &mut GrayAlphaImage, reference_image: &GrayAlphaImage) {
+    // todo!();
 }
 
 /// assumes pixel values from 0 to 255

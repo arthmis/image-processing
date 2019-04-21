@@ -2,7 +2,7 @@ extern crate image;
 extern crate image_processing;
 
 use image_processing::pixel_operations::*;
-use image_processing::statistics::histogram::*;
+// use image_processing::statistics::histogram::*;
 use image_processing::window::display_multiple_images;
 
 use image::ConvertBuffer;
