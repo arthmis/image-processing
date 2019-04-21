@@ -30,9 +30,79 @@ pub fn contrast(image: &GrayAlphaImage, contrast: u8) -> GrayAlphaImage {
     new_image
 }
 
+// also consider making alternative that accepts hi and lo range for percentage ranges of pixels
+// decide which auto contrast function to keep or keep both and see if there is use for the 
+// unmodified version
+
+/// saturates percentage of pixels from the bottom and top of the image intensity spectrum
+/// then linearly distributes the pixels within that spectrum 
+pub fn modified_auto_contrast_mut (image: &mut GrayAlphaImage) {
+    use crate::statistics::histogram::cumulative_gray_histogram;
+
+    let (percentage_min, percentage_max) = (0.01_f64, 0.01_f64);
+    let cumulative_histogram = cumulative_gray_histogram(&image);
+    let pixels_total: f64 = {
+        let (width, height) = image.dimensions();
+        (width * height) as f64
+    };
+
+    let image_min_value: u8 = {
+        let mut minimum: u8 = MAX_VALUE;
+        for (i, value) in cumulative_histogram.values.iter().enumerate() {
+            if *value as f64 >= pixels_total * percentage_min {
+                if (i as u8) < minimum {
+                    minimum = i as u8;
+                }
+            }
+        }
+        // dbg!(minimum);
+        minimum
+    };
+
+    let image_max_value: u8 = {
+        let mut maximum: u8 = MIN_VALUE;
+        for (i, value) in cumulative_histogram.values.iter().enumerate() {
+            if *value as f64 <= pixels_total * (1.0 - percentage_max) {
+                if (i as u8) > maximum {
+                    maximum = i as u8;
+                }
+            }
+        }
+        // dbg!(maximum);
+        maximum
+    };
+
+    for pixel in image.pixels_mut() {
+        let pixel_value = f64::from(pixel.data[0]);
+
+        if pixel_value <= image_min_value as f64 {
+            pixel.data[0] = MIN_VALUE;
+        } else if pixel_value >= image_max_value as f64 {
+            pixel.data[0] = MAX_VALUE;
+        } else {
+            let new_pixel_value = f64::from(MIN_VALUE)
+                + (pixel_value - image_min_value as f64) 
+                * f64::from(MAX_VALUE)
+                / (image_max_value - image_min_value) as f64;
+            let new_pixel_value = new_pixel_value.round() as i64;
+            let new_pixel_value = clamp_pixel(new_pixel_value);
+            pixel.data[0] = new_pixel_value;
+        }
+
+    }
+}
+
+/// See modified_auto_contrast_mut
+pub fn modified_auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
+    let mut new_image = image.clone();
+    modified_auto_contrast_mut(&mut new_image);
+    new_image
+}
+
 /// automatic contrast adjustment
 // TODO continue tweaking this to work better and use modified auto contrast
-// also change function signature to accept lower and upperbound on range of values
+// consider creating an alternate function that accepts lower and upper bound for
+// contrast range
 pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
     let mut new_image = image.clone();
 
@@ -57,7 +127,6 @@ pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
     };
 
     for pixel in new_image.pixels_mut() {
-        // dbg!(pixel);
         let pixel_value = f64::from(pixel.data[0]);
         let new_pixel_value = f64::from(MIN_VALUE)
             + (pixel_value - min_pixel) * f64::from(MAX_VALUE)
@@ -262,6 +331,8 @@ pub fn histogram_matching(image: &mut GrayAlphaImage, reference_image: &GrayAlph
     // todo!();
 }
 
+// improve this function to be generic and clamp and return whichever numeric type
+// the user wants
 /// assumes pixel values from 0 to 255
 fn clamp_pixel(value: i64) -> u8 {
     if value < 0 {
