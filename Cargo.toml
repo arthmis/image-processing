@@ -13,11 +13,15 @@ default-features = false
 features = ["bundled"]
 
 [dev-dependencies]
-# criterion = "0.2"
+criterion = "0.2"
 
 [[bench]]
-name = "benchmark"
+name = "histogram_specification"
 harness = false 
+
+# [[bench]]
+# name = "histograms"
+# harness = false
 
 [profile.dev]
 opt-level = 2 

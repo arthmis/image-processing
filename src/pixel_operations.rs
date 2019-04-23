@@ -236,11 +236,13 @@ pub fn match_piecewise_linear_histogram(
 ) -> GrayAlphaImage {
     use crate::statistics::histogram::cumulative_gray_histogram;
     use crate::statistics::histogram::graya_histogram;
+    use image::GrayAlphaImage;
 
     let mut new_image = image.clone();
+    // let mut new_image: GrayAlphaImage = image::ImageBuffer::new(image.width(), image.height());
 
     // calculate cumulative distribution functions for both images
-    let image_cumulative_histogram: [u32; 256] = cumulative_gray_histogram(&new_image).values;
+    let image_cumulative_histogram: [u32; 256] = cumulative_gray_histogram(&image).values;
     let reference_image_cumulative_histogram: [u32; 256] =
         cumulative_gray_histogram(&reference_image).values;
 
@@ -262,7 +264,7 @@ pub fn match_piecewise_linear_histogram(
         cdf
     };
 
-    let mut reference_image_cumulative_distribution_function: [f64; 256] = {
+    let reference_image_cumulative_distribution_function: [f64; 256] = {
         let mut cdf: [f64; 256] = [0.0; 256];
 
         for (dist_val, hist_val) in cdf
@@ -287,9 +289,8 @@ pub fn match_piecewise_linear_histogram(
     // create linear distribution inverse
     let piecewise_linear_distribution_inverse: [u8; 256] = {
         let mut linear_inverse_distribution: [u8; 256] = [0; 256];
-        for ((i, inverse_value), b) in linear_inverse_distribution
+        for (inverse_value, b) in linear_inverse_distribution
             .iter_mut()
-            .enumerate()
             .zip(image_cumulative_distribution_function.iter())
         {
             if *b <= piecewise_linear_distribution_points[0].1 as f64 {
@@ -320,12 +321,187 @@ pub fn match_piecewise_linear_histogram(
         let old_pixel_value = pixel.data[0];
         pixel.data[0] = piecewise_linear_distribution_inverse[old_pixel_value as usize];
     }
+    // for pixel in image.enumerate_pixels() {
+    //     let old_pixel_value = pixel.2.data[0];
+    //     use image::GenericImage;
+    //     use image::GenericImageView;
+    //     use image::LumaA;
+    //     let new_pixel = LumaA([piecewise_linear_distribution_inverse[old_pixel_value as usize], 255]);
+    //     unsafe {
+    //         new_image.unsafe_put_pixel(pixel.0, pixel.1, new_pixel);
+    //     }
+        // pixel.data[0] = piecewise_linear_distribution_inverse[old_pixel_value as usize];
+    // }
 
     new_image
 }
 
-pub fn histogram_matching(image: &mut GrayAlphaImage, reference_image: &GrayAlphaImage) {
-    // todo!();
+pub fn match_piecewise_linear_histogram_modified(
+    image: &GrayAlphaImage,
+    reference_image: &GrayAlphaImage,
+) -> GrayAlphaImage {
+    use crate::statistics::histogram::cumulative_gray_histogram;
+    use crate::statistics::histogram::graya_histogram;
+    use image::GrayAlphaImage;
+
+    // let mut new_image = image.clone();
+    let mut new_image: GrayAlphaImage = image::ImageBuffer::new(image.width(), image.height());
+
+    // calculate cumulative distribution functions for both images
+    // let image_cumulative_histogram: [u32; 256] = cumulative_gray_histogram(&image).values;
+    // let reference_image_cumulative_histogram: [u32; 256] =
+    //     cumulative_gray_histogram(&reference_image).values;
+
+    let image_total_pixels = {
+        let (width, height) = image.dimensions();
+        (width * height) as f64
+    };
+
+    let reference_image_total_pixels = {
+        let (width, height) = reference_image.dimensions();
+        (width * height) as f64
+    };
+
+    // let image_cumulative_distribution_function: [f64; 256] = {
+    //     let mut cdf: [f64; 256] = [0.0; 256];
+    //     for (dist_val, hist_val) in cdf.iter_mut().zip(image_cumulative_histogram.iter()) {
+    //         *dist_val = f64::from(*hist_val) / image_total_pixels;
+    //     }
+    //     cdf
+    // };
+
+    // let reference_image_cumulative_distribution_function: [f64; 256] = {
+    //     let mut cdf: [f64; 256] = [0.0; 256];
+
+    //     for (dist_val, hist_val) in cdf
+    //         .iter_mut()
+    //         .zip(reference_image_cumulative_histogram.iter())
+    //     {
+    //         *dist_val = f64::from(*hist_val) / reference_image_total_pixels;
+    //     }
+    //     cdf
+    // };
+
+    // let image_cumulative_distribution_function: [f64; 256] = {
+    //     let histogram = graya_histogram(&image).values; 
+    //     let mut cdf: [f64; 256] = [0.0; 256];
+    //     let total_accumulation: f64 = 0.0;
+    //     for (hist_value, cdf_value) in histogram.iter().zip(cdf.iter_mut()) {
+    //         let accumulation = *hist_value as f64 + total_accumulation; 
+    //         *cdf_value = total_accumulation / image_total_pixels;
+    //     }
+    //     cdf
+    // };
+
+    // let reference_image_cumulative_distribution_function: [f64; 256] = {
+    //     let histogram = graya_histogram(&reference_image).values; 
+    //     let mut cdf: [f64; 256] = [0.0; 256];
+    //     let total_accumulation: f64 = 0.0;
+    //     for (hist_value, cdf_value) in histogram.iter().zip(cdf.iter_mut()) {
+    //         let accumulation = *hist_value as f64 + total_accumulation; 
+    //         *cdf_value = total_accumulation / image_total_pixels;
+    //     }
+    //     cdf
+    // };
+    let image_cumulative_distribution_function = cumulative_distribution_function(&image);
+    let reference_image_cumulative_distribution_function = cumulative_distribution_function(&reference_image);
+
+    // create piecewise linear distribution for reference image
+    let piecewise_linear_distribution_points: [(u8, f64); 6] = [
+        (0, reference_image_cumulative_distribution_function[0]),
+        (28, reference_image_cumulative_distribution_function[28]),
+        (75, reference_image_cumulative_distribution_function[75]),
+        (150, reference_image_cumulative_distribution_function[150]),
+        (210, reference_image_cumulative_distribution_function[210]),
+        (255, 1.0),
+    ];
+
+    // create linear distribution inverse
+    let piecewise_linear_distribution_inverse: [u8; 256] = {
+        let mut linear_inverse_distribution: [u8; 256] = [0; 256];
+        for (inverse_value, b) in linear_inverse_distribution
+            .iter_mut()
+            .zip(image_cumulative_distribution_function.iter())
+        {
+            if *b <= piecewise_linear_distribution_points[0].1 as f64 {
+                *inverse_value = 0;
+            } else if *b >= 1.0 {
+                *inverse_value = 255;
+            } else {
+                for (j, point) in piecewise_linear_distribution_points
+                    .iter()
+                    .enumerate()
+                    .rev()
+                {
+                    if point.1 <= *b {
+                        let next_point = piecewise_linear_distribution_points[j + 1];
+                        *inverse_value = (point.0 as f64
+                            + (*b - point.1) * f64::from(next_point.0 - point.0)
+                                / (next_point.1 - point.1))
+                            .round() as u8;
+                        break;
+                    }
+                }
+            }
+        }
+        linear_inverse_distribution
+    };
+
+    // for pixel in new_image.pixels_mut() {
+    //     let old_pixel_value = pixel.data[0];
+    //     pixel.data[0] = piecewise_linear_distribution_inverse[old_pixel_value as usize];
+    // }
+    for pixel in image.enumerate_pixels() {
+        let old_pixel_value = pixel.2.data[0];
+        use image::GenericImage;
+        use image::GenericImageView;
+        use image::LumaA;
+        unsafe {
+            new_image.unsafe_put_pixel(pixel.0, pixel.1, LumaA([piecewise_linear_distribution_inverse[old_pixel_value as usize], 255]));
+        }
+    }
+
+    new_image
+}
+
+// continue to learn about this so i can explain the intuition behind it (haven't completely understood this yet)
+pub fn histogram_matching(image: &GrayAlphaImage, reference_image: &GrayAlphaImage) -> GrayAlphaImage {
+    let image_cdf = cumulative_distribution_function(&image);
+    let reference_image_cdf = cumulative_distribution_function(&reference_image);
+    let mut look_up_table: [u8; 256] = [0; 256];
+    
+    for (i, image_cdf_value) in image_cdf.iter().enumerate() {
+        let mut j = MAX_VALUE;
+        while j > 0 && *image_cdf_value <= reference_image_cdf[j as usize] {
+            look_up_table[i] = j;
+            j -= 1;
+        }
+    }
+    let j = 0;
+    
+    let mut new_image = image.clone();
+    for pixel in new_image.pixels_mut() {
+        let old_pixel = pixel.data[0];
+        pixel.data[0] = look_up_table[old_pixel as usize];
+    }
+    new_image
+}
+
+fn cumulative_distribution_function(image: &GrayAlphaImage) -> [f64; 256] {
+    let total_pixels: f64 = {
+        let (width, height) = image.dimensions();
+        (width * height) as f64
+    };
+
+    use crate::statistics::histogram::cumulative_gray_histogram;
+    let cumulative_histogram = cumulative_gray_histogram(&image).values;
+
+    let mut cdf: [f64; 256] = [0.0; 256];
+    for (hist_value, cdf_value) in cumulative_histogram.iter().zip(cdf.iter_mut()) {
+        *cdf_value = (*hist_value as f64) / total_pixels;
+    }
+
+    cdf
 }
 
 // improve this function to be generic and clamp and return whichever numeric type

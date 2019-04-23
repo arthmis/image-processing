@@ -16,22 +16,24 @@ fn main() {
         .to_luma_alpha();
     let width = 500;
     let height = 500;
-    let histogram_specification = match_piecewise_linear_histogram(&img, &next_img);
+    let piecewise_histogram_matching = match_piecewise_linear_histogram_modified(&img, &next_img);
+    let histogram_matching = histogram_matching(&img, &next_img);
 
     display_multiple_images(
-        &["base", "histogram specification", "target image"],
+        &["base", "piecewise linear histogram matching", "target image", "histogram matching"],
         &[
             &img.convert(),
-            &histogram_specification.convert(),
+            &piecewise_histogram_matching.convert(),
             &next_img.convert(),
+            &histogram_matching.convert(),
         ],
         width,
         height,
     );
 
-    img.save("images/base.jpg").unwrap();
-    histogram_specification
-        .save("images/matched_histogram.jpg")
-        .unwrap();
-    next_img.save("images/reference_image.jpg").unwrap();
+    // img.save("images/base.jpg").unwrap();
+    // histogram_specification
+    //     .save("images/matched_histogram.jpg")
+    //     .unwrap();
+    // next_img.save("images/reference_image.jpg").unwrap();
 }
