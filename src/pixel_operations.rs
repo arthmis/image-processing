@@ -28,9 +28,13 @@ where
         for x in 0..width {
             let new_pixel = image.get_pixel_mut(x, y).apply_with_alpha(
                 |value| {
-                    let value: f64 = NumCast::from(value).unwrap();
-                    let new_value = value * (2.0_f64.powf(exposure_compensation));
-                    NumCast::from(new_value.round()).unwrap()
+                    let value: f64 = NumCast::from(value).expect("failed cast from u8 to f64");
+                    let new_value = value / 2.2 * (2.0_f64.powf(exposure_compensation));
+                    use std::f64::MAX;
+                    let new_value = clamp(new_value.round(), 0.0, 255.0);
+                    NumCast::from(new_value.round()).expect("failed cast from f64 to u8")
+
+
                 },
                 |alpha| alpha,
             );

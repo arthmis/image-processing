@@ -20,17 +20,17 @@ fn main() {
     // let piecewise_histogram_matching = match_piecewise_linear_histogram_modified(&img, &next_img);
     // let histogram_matching = histogram_matching(&img, &next_img);
     let base_img = img.clone();
-    invert_mut(&mut img);
-    let non_mut = invert(&base_img);
+    // invert_mut(&mut img);
+    // let non_mut = invert(&base_img);
+    exposure_compensation_mut(&mut img, 1.0);
 
     let width = 500;
     let height = 500;
     display_multiple_images(
-        &["base", "generic invert", "invert non mut"],
+        &["base", "exposure compensation"],
         &[
             &base_img.convert(),
             &img.convert(),
-            &non_mut.convert(),
         ],
         width,
         height,
