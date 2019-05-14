@@ -3,7 +3,7 @@ extern crate image;
 pub mod histogram;
 pub mod integral_image;
 
-use image::{GrayAlphaImage, GrayImage, RgbImage, RgbaImage};
+use image::{RgbaImage};
 
 pub fn get_mean(image: &RgbaImage) -> f64 {
     let image_iter = image.pixels();

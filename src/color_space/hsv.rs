@@ -31,7 +31,7 @@ use image::GenericImageView;
 // }
 
 pub struct HSV {
-    pub hue: Vec<u16>,
+    hue: Vec<u16>,
     saturation: Vec<f32>,
     intensity: Vec<u8>,
     width: u32,
@@ -59,7 +59,7 @@ impl HSV {
         }
     }
 
-    pub fn from_image<I>(image: I) -> Self 
+    pub fn from_image<I>(_image: I) -> Self 
     where 
         I: GenericImageView,
     {
@@ -112,6 +112,12 @@ impl HSV {
         self.intensity.iter_mut()
     }
 
+}
+
+impl HSV {
+    pub fn get_hue(&self, x: usize, y: usize) -> u16 {
+        self.hue[x + (self.width as usize * y)]
+    }
 }
 
 /// Methods concerning image dimensions
