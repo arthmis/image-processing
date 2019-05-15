@@ -59,7 +59,8 @@ impl HSV {
         }
     }
 
-    pub fn from_image<I>(image: RgbaImage) -> Self {
+    // think about adding a specific function that converts rgb pixel to hsv
+    pub fn from_image(image: &RgbaImage) -> Self {
         let (width, height) = image.dimensions();
 
         let capacity = (width * height) as usize;
@@ -76,8 +77,8 @@ impl HSV {
 
                 let theta: f32 = {
                     let numerator = 0.5 * ((red - green) + (red - blue));
-                    let denominator = ((red + green).powi(2) + (red - blue) * (green - blue)).powf(0.5);
-                    (numerator / denominator).acos()
+                    let denominator = ((red - green).powf(2.0) + (red - blue) * (green - blue)).powf(0.5);
+                    (numerator / denominator).acos().to_degrees()
                 };
 
                 let hue: f32 = {
@@ -96,7 +97,7 @@ impl HSV {
                     (red + blue + green) / 3.0
                 };
                 hue_data.push(hue.round() as u16);
-                saturation_data.push(saturation.round());
+                saturation_data.push(saturation);
                 intensity_data.push((intensity * 255.0).round() as u8);
             }
         }
@@ -110,6 +111,53 @@ impl HSV {
         }
     }
 
+    pub fn to_rgb_image(&self) -> RgbaImage {
+        use image::ImageBuffer;
+
+        let (width, height) = self.dimensions();
+        let mut rgb_image: RgbaImage = ImageBuffer::new(width, height); 
+
+        for y in 0..height {
+            for x in 0..width {
+                let x = x as usize;
+                let y = y as usize;
+
+                let rgb = Self::hsv_to_rgb((self.get_hue(x, y), self.get_saturation(x, y), self.get_intensity(x, y)));
+                let pixel = rgb_image.get_pixel_mut(x as u32, y as u32);
+
+                pixel[0] = rgb[0];
+                pixel[1] = rgb[1];
+                pixel[2] = rgb[2];
+                pixel[3] = 255;
+            }
+        }
+        rgb_image        
+    }
+
+    pub fn hsv_to_rgb(hsv: (u16, f32, u8)) -> [u8; 3] {
+        let hue = hsv.0 as f32;
+        let saturation = hsv.1;
+        let brightness = hsv.2 as f32;
+
+        if (hue as u16) < 120 {
+            let blue = brightness * (1.0 - saturation);
+            let red = brightness * (1.0 + (saturation * hue.to_radians().cos().to_degrees()) / (60.0 - hue).to_radians().cos().to_degrees());
+            let green = 3.0 * brightness - (red + blue);
+            [red.round() as u8, green.round() as u8, blue.round() as u8]
+        } else if 120 <= (hue as u16) && (hue as u16) < 240 {
+            let hue = hue - 120.0;
+            let red = brightness * (1.0 - saturation);
+            let green = brightness * (1.0 + (saturation * hue.to_radians().cos().to_degrees()) / (60.0 - hue).to_radians().cos().to_degrees());
+            let blue = 3.0 * brightness - (red + green); 
+            [red.round() as u8, green.round() as u8, blue.round() as u8]
+        } else {
+            let hue = hue - 240.0;
+            let green = brightness * (1.0 - saturation);
+            let blue = brightness * (1.0 + (saturation * hue.to_radians().cos().to_degrees()) / (60.0 - hue).to_radians().cos().to_degrees());
+            let red = 3.0 * brightness - (green + blue); 
+            [red.round() as u8, green.round() as u8, blue.round() as u8]
+        }
+    }
 }
 
 /// Iterators 
@@ -162,6 +210,14 @@ impl HSV {
     pub fn get_hue(&self, x: usize, y: usize) -> u16 {
         self.hue_data[x + (self.width as usize * y)]
     }
+
+    pub fn get_saturation(&self, x: usize, y: usize) -> f32 {
+        self.saturation_data[x + (self.width as usize * y)]
+    }
+    
+    pub fn get_intensity(&self, x: usize, y: usize) -> u8 {
+        self.intensity_data[x + (self.width as usize * y)]
+    }
 }
 
 /// Methods concerning image dimensions
@@ -185,7 +241,7 @@ impl HSV {
 
 
 // Utility functions
-fn min_rgb(red: f32, green: f32, blue: f32) -> f32 {
+pub fn min_rgb(red: f32, green: f32, blue: f32) -> f32 {
     blue.min(red.min(green))
 }
 // /// Iterators
@@ -195,3 +251,35 @@ fn min_rgb(red: f32, green: f32, blue: f32) -> f32 {
 //     fn next(&mut self) -> Option<Self::Item> { unimplemented!() }
 
 // }
+
+
+#[cfg(test)]
+mod tests {
+    use image::RgbaImage;
+    use super::*;
+    // going have to complete this, figuring out the exact values is a pain
+    #[test] 
+    fn rgb_to_hsv() {
+        let raw_data = vec![
+            25, 33, 44, 255,
+            88, 21, 30, 255,
+            99, 0, 63, 255,
+            156, 200, 185, 255,
+        ];
+        let image: RgbaImage = image::ImageBuffer::from_raw(2, 2, raw_data).unwrap(); 
+        let hsv_image = HSV::from_image(&image);
+        for ((hue, saturation), brightness) in hsv_image.hues()
+            .zip(hsv_image.saturations())
+            .zip(hsv_image.intensities()) 
+        {
+            println!("hue: {}, saturation: {}, brightness: {}", hue, saturation, brightness);
+        }
+    }
+    
+    #[test]
+    fn test_min_rgb() {
+        let (red, green, blue) = (44.0, 33.0, 25.0); 
+        let min = min_rgb(red, green, blue);
+        assert_eq!(min, 25.0);
+    }
+}
