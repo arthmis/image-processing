@@ -59,7 +59,6 @@ pub fn convert_to_image(
         max
     };
 
-
     let raw_image_buffer = vec![255; (image_width * image_height) as usize];
     let mut image: GrayImage = ImageBuffer::from_raw(image_width, image_height, raw_image_buffer)
         .expect("white image could not be created");
@@ -134,11 +133,7 @@ pub fn rgb_histogram(image: &RgbaImage) -> RgbHistogram {
         green[pixel[1] as usize] += 1;
         blue[pixel[2] as usize] += 1;
     }
-    RgbHistogram {
-        red,
-        green,
-        blue,
-    }
+    RgbHistogram { red, green, blue }
 }
 
 pub fn graya_histogram(image: &GrayAlphaImage) -> GrayHistogram {
