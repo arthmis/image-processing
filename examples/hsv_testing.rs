@@ -1,11 +1,10 @@
-use image_processing::color_space::hsv::*;
-use image::RgbaImage;
 use image;
+use image::RgbaImage;
+use image_processing::color_space::hsv::*;
 use image_processing::window::display_multiple_images;
 // use image::ConvertBuffer;
 
 fn main() {
-
     let image = image::open("images/england-hampton-court-palace.jpg")
         .expect("couldn't find image at that path")
         .to_rgba();
@@ -17,17 +16,14 @@ fn main() {
     display_multiple_images(
         &["original", "converted back"],
         &[&image, &convert_image],
-        width, 
+        width,
         height,
     );
 
     let raw_data = vec![
-        25, 33, 44, 255,
-        88, 21, 30, 255,
-        99, 0, 63, 255,
-        156, 200, 201, 255,
+        25, 33, 44, 255, 88, 21, 30, 255, 99, 0, 63, 255, 156, 200, 201, 255,
     ];
-    let image: RgbaImage = image::ImageBuffer::from_raw(2, 2, raw_data).unwrap(); 
+    let image: RgbaImage = image::ImageBuffer::from_raw(2, 2, raw_data).unwrap();
     let hsv_image = HSV::from_image(&image);
     let convert_image = hsv_image.to_rgb_image();
     for pixel in convert_image.pixels() {
@@ -36,7 +32,7 @@ fn main() {
     // println!();
     // for ((hue, saturation), brightness) in hsv_image.hues()
     //     .zip(hsv_image.saturations())
-    //     .zip(hsv_image.intensities()) 
+    //     .zip(hsv_image.intensities())
     // {
     //     // println!("hue: {}, saturation: {}, brightness: {}", hue, saturation, brightness);
     // }

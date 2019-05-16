@@ -1,6 +1,6 @@
 //! Operations that only deal with one pixel
 
-use image::{Primitive, Pixel, GenericImage};
+use image::{GenericImage, Pixel, Primitive};
 use num_traits::cast::NumCast;
 
 const MAX_VALUE: u8 = 255;
@@ -16,8 +16,7 @@ pub fn clamp<T: Primitive>(value: T, min: T, max: T) -> T {
     }
 }
 
-// pub fn exposure_compensation_mut(image: &mut GrayAlphaImage, exposure_compensation: f64) {
-pub fn exposure_compensation_mut<I, P, S>(image: &mut I, exposure_compensation: f64) 
+pub fn exposure_compensation_mut_rgb<I, P, S>(image: &mut I, exposure_compensation: f32)
 where
     I: GenericImage<Pixel = P>,
     P: Pixel<Subpixel = S> + 'static,
@@ -26,18 +25,22 @@ where
     let (width, height) = image.dimensions();
     for y in 0..height {
         for x in 0..width {
-            image.get_pixel_mut(x, y).apply_with_alpha(
-                |value| {
-                    let value: f64 = NumCast::from(value).expect("failed cast from u8 to f64");
-                    let new_value = value / 2.2 * (2.0_f64.powf(exposure_compensation));
-                    let new_value = clamp(new_value.round(), 0.0, 255.0);
-                    NumCast::from(new_value.round()).expect("failed cast from f64 to u8")
-
-
-                },
-                |alpha| alpha,
-            );
+            image.get_pixel_mut(x, y).apply_without_alpha(|value| {
+                let value: f32 = NumCast::from(value).expect("failed cast from u8 to f64");
+                let new_value = value * (2.0_f32.powf(exposure_compensation));
+                let new_value = clamp(new_value.round(), 0.0, 255.0);
+                NumCast::from(new_value.round()).expect("failed cast from f64 to u8")
+            });
         }
+    }
+}
+
+pub fn exposure_compensation_mut(brightness_data: &mut [u8], exposure_compensation: f32) {
+    for brightness in brightness_data.iter_mut() {
+        let value: f32 = NumCast::from(*brightness).expect("failed cast from u8 to f32");
+        let new_value = value * (2.0_f32.powf(exposure_compensation));
+        let new_value: f32 = clamp(new_value.round(), 0.0, 255.0);
+        *brightness = NumCast::from(new_value).expect("failed cast from f32 to u8");
     }
 }
 
@@ -192,8 +195,8 @@ where
 // use image::Primitive;
 // use image::GenericImage;
 // use image::Pixel;
-// // pub fn brightness_mut<I, P, S>(image: &mut GrayAlphaImage, brightness: i16) 
-// pub fn brightness_mut<I, P, S>(image: &mut I, brightness: i16) 
+// // pub fn brightness_mut<I, P, S>(image: &mut GrayAlphaImage, brightness: i16)
+// pub fn brightness_mut<I, P, S>(image: &mut I, brightness: i16)
 // where
 //     I: GenericImage<Pixel = P>,
 //     P: Pixel<Subpixel = S> + 'static,
@@ -235,7 +238,7 @@ where
 // }
 
 /// inverts image in place
-pub fn invert_mut<I, P, S>(image: &mut I) 
+pub fn invert_mut<I, P, S>(image: &mut I)
 where
     I: GenericImage<Pixel = P>,
     P: Pixel<Subpixel = S> + 'static,
@@ -248,13 +251,15 @@ where
     let (width, height) = image.dimensions();
     for x in 0..width {
         for y in 0..height {
-            image.get_pixel_mut(x, y).apply_with_alpha(apply_color, |alpha| alpha);
+            image
+                .get_pixel_mut(x, y)
+                .apply_with_alpha(apply_color, |alpha| alpha);
         }
     }
 }
 
-pub fn invert<I, P, S>(image: &I) -> I 
-where 
+pub fn invert<I, P, S>(image: &I) -> I
+where
     I: GenericImage<Pixel = P> + Clone,
     P: Pixel<Subpixel = S> + 'static,
     S: Primitive + 'static,
@@ -263,7 +268,6 @@ where
     invert_mut(&mut new_image);
     new_image
 }
-
 
 // // pub fn invert_grayscale_threaded(image: &mut GrayAlphaImage) -> GrayAlphaImage {
 
@@ -324,7 +328,7 @@ where
 
 //     for (hist_value, pdf_value) in histogram.iter().zip(probability_distribution_function.iter_mut()) {
 //         *pdf_value = (*hist_value as f64) / total_pixels;
-//     } 
+//     }
 //     probability_distribution_function
 // }
 
@@ -509,22 +513,22 @@ where
 //     // };
 
 //     // let image_cumulative_distribution_function: [f64; 256] = {
-//     //     let histogram = graya_histogram(&image).values; 
+//     //     let histogram = graya_histogram(&image).values;
 //     //     let mut cdf: [f64; 256] = [0.0; 256];
 //     //     let total_accumulation: f64 = 0.0;
 //     //     for (hist_value, cdf_value) in histogram.iter().zip(cdf.iter_mut()) {
-//     //         let accumulation = *hist_value as f64 + total_accumulation; 
+//     //         let accumulation = *hist_value as f64 + total_accumulation;
 //     //         *cdf_value = total_accumulation / image_total_pixels;
 //     //     }
 //     //     cdf
 //     // };
 
 //     // let reference_image_cumulative_distribution_function: [f64; 256] = {
-//     //     let histogram = graya_histogram(&reference_image).values; 
+//     //     let histogram = graya_histogram(&reference_image).values;
 //     //     let mut cdf: [f64; 256] = [0.0; 256];
 //     //     let total_accumulation: f64 = 0.0;
 //     //     for (hist_value, cdf_value) in histogram.iter().zip(cdf.iter_mut()) {
-//     //         let accumulation = *hist_value as f64 + total_accumulation; 
+//     //         let accumulation = *hist_value as f64 + total_accumulation;
 //     //         *cdf_value = total_accumulation / image_total_pixels;
 //     //     }
 //     //     cdf
@@ -595,7 +599,7 @@ where
 //     let image_cdf = cumulative_distribution_function(&image);
 //     let reference_image_cdf = cumulative_distribution_function(&reference_image);
 //     let mut look_up_table: [u8; 256] = [0; 256];
-    
+
 //     for (i, image_cdf_value) in image_cdf.iter().enumerate() {
 //         let mut j = MAX_VALUE;
 //         // TODO: the statement should say j >= 0 but it overflows, figure out how to correct this
@@ -604,8 +608,7 @@ where
 //             j -= 1;
 //         }
 //     }
-    
-    
+
 //     let mut new_image = image.clone();
 //     for pixel in new_image.pixels_mut() {
 //         let old_pixel = pixel.data[0];

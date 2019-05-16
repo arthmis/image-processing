@@ -28,10 +28,7 @@ fn main() {
     let height = 500;
     display_multiple_images(
         &["base", "exposure compensation"],
-        &[
-            &base_img.convert(),
-            &img.convert(),
-        ],
+        &[&base_img.convert(), &img.convert()],
         width,
         height,
     );
