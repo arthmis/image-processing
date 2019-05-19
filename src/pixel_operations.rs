@@ -1,10 +1,14 @@
 //! Operations that only deal with one pixel
 
-use image::{GenericImage, Pixel, Primitive};
+use image::{GenericImage, Pixel, Primitive, RgbaImage};
 use num_traits::cast::NumCast;
 
 const MAX_VALUE: u8 = 255;
 // const MIN_VALUE: u8 = 0;
+/// Weighted values to turn rgb to luma
+const RED_WEIGHT: f32 = 0.299;
+const GREEN_WEIGHT: f32 = 0.587;
+const BLUE_WEIGHT: f32 = 0.114;
 
 pub fn clamp<T: Primitive>(value: T, min: T, max: T) -> T {
     if value < min {
@@ -16,31 +20,65 @@ pub fn clamp<T: Primitive>(value: T, min: T, max: T) -> T {
     }
 }
 
-pub fn exposure_compensation_mut_rgb<I, P, S>(image: &mut I, exposure_compensation: f32)
-where
-    I: GenericImage<Pixel = P>,
-    P: Pixel<Subpixel = S> + 'static,
-    S: Primitive + 'static,
-{
+pub fn luma_weighted(red: f32, green: f32, blue: f32) -> f32 {
+    red * RED_WEIGHT + green * GREEN_WEIGHT + blue * BLUE_WEIGHT 
+}
+
+pub fn exposure_compensation_mut_rgb(image: &mut RgbaImage, exposure_compensation: f32) {
     let (width, height) = image.dimensions();
     for y in 0..height {
         for x in 0..width {
+            if x == 297 && y == 165 {
+                let pixel = image.get_pixel(x,  y);
+                dbg!(pixel[0]);
+                dbg!(pixel[1]);
+                dbg!(pixel[2]);
+            }
             image.get_pixel_mut(x, y).apply_without_alpha(|value| {
                 let value: f32 = NumCast::from(value).expect("failed cast from u8 to f64");
                 let new_value = value * (2.0_f32.powf(exposure_compensation));
                 let new_value = clamp(new_value.round(), 0.0, 255.0);
                 NumCast::from(new_value.round()).expect("failed cast from f64 to u8")
             });
+            // let pixel = image.get_pixel_mut(x, y).channels_mut();
+            // // println!("{:?}", pixel[0]);
+            // let red: f32 = NumCast::from(pixel[0]).unwrap();
+            // let green: f32 = NumCast::from(pixel[1]).unwrap();
+            // let blue: f32 = NumCast::from(pixel[2]).unwrap();
+            // let exposure_transformation = 2.0_f32.powf(exposure_compensation);
+            // let new_red = exposure_transformation * red * RED_WEIGHT; 
+            // let new_green = exposure_transformation * green * GREEN_WEIGHT;
+            // let new_blue = exposure_transformation * blue * BLUE_WEIGHT;
+            // pixel[0] = clamp(new_red.round(), 0.0, 255.0) as u8;
+            // pixel[1] = clamp(new_green.round(), 0.0, 255.0) as u8;
+            // pixel[2] = clamp(new_blue.round(), 0.0, 255.0) as u8;
         }
     }
 }
 
+// color shift will occur if the pixel becomes too bright and 1 or 2 of the 
+// color channels clip when converted back to rgb if they weren't clipped before
+// this only occurs when increasing brightness
+// will have to figure out how image editors get around this problem
 pub fn exposure_compensation_mut(brightness_data: &mut [u8], exposure_compensation: f32) {
     for brightness in brightness_data.iter_mut() {
         let value: f32 = NumCast::from(*brightness).expect("failed cast from u8 to f32");
-        let new_value = value * (2.0_f32.powf(exposure_compensation));
-        let new_value: f32 = clamp(new_value.round(), 0.0, 255.0);
+        // let value_to_add = 2.0_f32.powf(exposure_compensation);
+        // let value_to_add = value * exposure_compensation;
+        let mut new_value = value * (2.0_f32.powf(exposure_compensation));
+        // let mut new_value = value + value_to_add;
+        new_value = clamp(new_value.round(), 0.0, 255.0);
         *brightness = NumCast::from(new_value).expect("failed cast from f32 to u8");
+    }
+}
+
+/// positive value increases saturation and negative decreases it
+/// the input value will be used as a percentage to increase the saturation
+// put an example of how to use
+pub fn change_saturation_mut(saturation_data: &mut [f32], new_saturation: f32) {
+    for saturation in saturation_data.iter_mut() {
+        let add_value = *saturation * new_saturation;
+        *saturation = clamp(*saturation + add_value, 0.0, 1.0);
     }
 }
 

@@ -98,6 +98,11 @@ impl HSV {
                 hue_data.push(hue.round() as u16);
                 saturation_data.push(saturation);
                 intensity_data.push((intensity * 255.0).round() as u8);
+                if x == 297 && y == 165 {
+                    dbg!(hue);
+                    dbg!(saturation);
+                    dbg!(intensity * 255.0);
+                }
             }
         }
 
@@ -120,12 +125,22 @@ impl HSV {
             for x in 0..width {
                 let x = x as usize;
                 let y = y as usize;
+                if x == 297 && y == 165 {
+                    println!("hue: {}", self.get_hue(x, y));
+                    println!("saturation: {}", self.get_saturation(x, y));
+                    println!("brightness: {}", self.get_intensity(x, y));
+                }
 
                 let rgb = Self::hsv_to_rgb((
                     self.get_hue(x, y),
                     self.get_saturation(x, y),
                     self.get_intensity(x, y),
                 ));
+                if x == 297 && y == 165 {
+                    println!("red: {}", rgb[0]);
+                    println!("green: {}", rgb[1]);
+                    println!("blue: {}", rgb[2]);
+                }
                 let pixel = rgb_image.get_pixel_mut(x as u32, y as u32);
 
                 pixel[0] = rgb[0];
@@ -141,6 +156,7 @@ impl HSV {
         let hue = hsv.0 as f32;
         let saturation = hsv.1;
         let brightness = hsv.2 as f32;
+        
 
         if (hue as u16) < 120 {
             let blue = brightness * (1.0 - saturation);
@@ -248,6 +264,10 @@ impl HSV {
     // }
     pub fn intensity_data_mut(&mut self) -> &mut [u8] {
         &mut self.intensity_data
+    }
+
+    pub fn saturation_data_mut(&mut self) -> &mut [f32] {
+        &mut self.saturation_data
     }
 }
 
