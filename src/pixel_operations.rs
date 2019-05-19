@@ -86,46 +86,48 @@ pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
     use crate::statistics::histogram::cumulative_intensity_histogram;
     use std::u8;
 
-    let pixels_total = intensity_data.len() as f64;
+    let pixels_total = intensity_data.len() as f32;
     let cumulative_histogram = cumulative_intensity_histogram(intensity_data);
-    let (percentage_low, percentage_high) = (0.01_f64, 0.01_f64);
+    let (percentage_low, percentage_high) = (0.01_f32, 0.01_f32);
 
-    let image_low = pixels_total as f64 * percentage_low;
-    let image_min: u8 = {
-        let mut minimum: u8 = u8::MAX;
-        for (index, value) in cumulative_histogram.iter().enumerate() {
-            if *value as f64 >= image_low {
-                if (index as u8) < minimum {
-                    minimum = index as u8;
+    let image_low: u8 = {
+        let image_low = pixels_total as f32 * percentage_low;
+        let mut minimum_intensity = u8::MAX;
+        for (intensity, value) in cumulative_histogram.iter().enumerate() {
+            if *value as f32 >= image_low {
+                if (intensity as u8) < minimum_intensity {
+                    minimum_intensity = intensity as u8;
                 }
             }
         }
-        minimum
+        
+        minimum_intensity
     };
+    
 
-    let image_high = pixels_total as f64 * (1.0 - percentage_high);
-    let image_max: u8 = {
-        let mut maximum: u8 = u8::MIN;
-        for (index, value) in cumulative_histogram.iter().enumerate() {
-            if *value as f64 <= image_high {
-                if (index as u8) > maximum {
-                    maximum = index as u8;
+    let image_high: u8 = {
+        let image_high = pixels_total as f32 * (1.0 - percentage_high);
+        let mut maximum_intensity = u8::MIN;
+        for (intensity, value) in cumulative_histogram.iter().enumerate() {
+            if *value as f32 <= image_high {
+                if (intensity as u8) > maximum_intensity {
+                    maximum_intensity = intensity as u8;
                 }
             }
         }
-        maximum
+        maximum_intensity
     };
 
     for intensity in intensity_data.iter_mut() {
         if *intensity <= image_low as u8 {
-            *intensity = image_min;
+            *intensity = u8::MIN;
         } else if *intensity >= image_high as u8 {
-            *intensity = image_max
+            *intensity = u8::MAX; 
         } else {
-            let new_intensity = u8::MIN as f64
-                + (*intensity as f64 - image_low as f64) * (image_max - image_min) as f64
-                    / (image_high - image_low) as f64;
-            *intensity = clamp(new_intensity.round(), u8::MIN as f64, u8::MAX as f64) as u8;
+            let new_intensity = u8::MIN as f32
+                + (*intensity as f32 - image_low as f32) * (u8::MAX - u8::MIN) as f32
+                    / (image_high - image_low) as f32;
+            *intensity = clamp(new_intensity.round(), u8::MIN as f32, u8::MAX as f32) as u8;
         }
     }
 }

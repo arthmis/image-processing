@@ -40,8 +40,9 @@ impl CumulativeIntensityHistogram {
 pub fn intensity_histogram(intensity_data: &[u8]) -> IntensityHistogram {
     let mut histogram: [u32; 256] = [0; 256];
     for intensity in intensity_data.iter() {
-        histogram[*intensity as usize] + 1;
+        histogram[*intensity as usize] = histogram[*intensity as usize] + 1;
     }
+
     IntensityHistogram(histogram)
 }
 
