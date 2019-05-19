@@ -22,6 +22,43 @@ pub struct CumulativeGrayHistogram {
     pub values: [u32; 256],
 }
 
+pub struct IntensityHistogram([u32; 256]);
+
+impl IntensityHistogram {
+    pub fn iter(&self) -> impl Iterator<Item = &u32> {
+        self.0.iter()
+    }
+}
+pub struct CumulativeIntensityHistogram([u32; 256]);
+
+impl CumulativeIntensityHistogram {
+    pub fn iter(&self) -> impl Iterator<Item = &u32> {
+        self.0.iter()
+    }
+}
+
+pub fn intensity_histogram(intensity_data: &[u8]) -> IntensityHistogram {
+    let mut histogram: [u32; 256] = [0; 256];
+    for intensity in intensity_data.iter() {
+        histogram[*intensity as usize] + 1;
+    }
+    IntensityHistogram(histogram)
+}
+
+pub fn cumulative_intensity_histogram(intensity_data: &[u8]) -> CumulativeIntensityHistogram {
+    let histogram = intensity_histogram(intensity_data);
+    let mut cumulative_histogram: [u32; 256] = [0; 256];
+    let mut cumulative_value = 0;
+
+    for (hist_value, cumulative_hist_value) in histogram.iter().zip(cumulative_histogram.iter_mut())
+    {
+        cumulative_value = *hist_value + cumulative_value;
+        *cumulative_hist_value = cumulative_value;
+    }
+
+    CumulativeIntensityHistogram(cumulative_histogram)
+}
+
 // TODO add test for histogram functions
 // Check if sum of all values equals image height times image width
 pub fn cumulative_gray_histogram(gray_image: &GrayAlphaImage) -> CumulativeGrayHistogram {

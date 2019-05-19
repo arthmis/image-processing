@@ -1,35 +1,5 @@
 use image::RgbaImage;
 use num_traits::clamp;
-// pub struct HueIter<'a> {
-//     hues: &'a [u16],
-//     x: usize = 0,
-//     y: usize,
-//     width: u32,
-//     height: u32,
-// }
-
-// impl<'a> Iterator for HueIter<'a> {
-//     type Item = &'a u16;
-
-//     // #[inline(always)]
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.y >= self.height as usize {
-//             None
-//         } else {
-//             let x = self.x;
-//             let y = self.y;
-
-//             if self.x + 1 >= self.width as usize {
-//                 self.y += 1;
-//                 self.x = 0;
-//             } else {
-//                 self.x += 1;
-//             }
-
-//             Some(&self.hues[x + (self.width as usize * y)])
-//         }
-//     }
-// }
 
 pub struct HSV {
     hue_data: Vec<u16>,
@@ -156,7 +126,6 @@ impl HSV {
         let hue = hsv.0 as f32;
         let saturation = hsv.1;
         let brightness = hsv.2 as f32;
-        
 
         if (hue as u16) < 120 {
             let blue = brightness * (1.0 - saturation);
@@ -215,13 +184,6 @@ impl HSV {
         })
     }
     pub fn hues(&self) -> impl Iterator<Item = &u16> {
-        // HueIter {
-        //     hues: &self.hue_data,
-        //     x: 0,
-        //     y: 0,
-        //     width: self.width,
-        //     height: self.height,
-        // }
         self.hue_data.iter()
     }
 

@@ -21,7 +21,7 @@ fn main() {
     exposure_compensation_mut_rgb(&mut img, 1.0);
     let (width, height) = (500, 500);
     let new_image = hsv_image.to_rgb_image();
-    let after_EC = HSV::from_image(&new_image); 
+    let after_EC = HSV::from_image(&new_image);
 
     display_multiple_images(
         &["original", "hsv compensated", "rgb compensated" ],

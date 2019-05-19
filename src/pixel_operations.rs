@@ -21,7 +21,7 @@ pub fn clamp<T: Primitive>(value: T, min: T, max: T) -> T {
 }
 
 pub fn luma_weighted(red: f32, green: f32, blue: f32) -> f32 {
-    red * RED_WEIGHT + green * GREEN_WEIGHT + blue * BLUE_WEIGHT 
+    red * RED_WEIGHT + green * GREEN_WEIGHT + blue * BLUE_WEIGHT
 }
 
 pub fn exposure_compensation_mut_rgb(image: &mut RgbaImage, exposure_compensation: f32) {
@@ -29,7 +29,7 @@ pub fn exposure_compensation_mut_rgb(image: &mut RgbaImage, exposure_compensatio
     for y in 0..height {
         for x in 0..width {
             if x == 297 && y == 165 {
-                let pixel = image.get_pixel(x,  y);
+                let pixel = image.get_pixel(x, y);
                 dbg!(pixel[0]);
                 dbg!(pixel[1]);
                 dbg!(pixel[2]);
@@ -46,7 +46,7 @@ pub fn exposure_compensation_mut_rgb(image: &mut RgbaImage, exposure_compensatio
             // let green: f32 = NumCast::from(pixel[1]).unwrap();
             // let blue: f32 = NumCast::from(pixel[2]).unwrap();
             // let exposure_transformation = 2.0_f32.powf(exposure_compensation);
-            // let new_red = exposure_transformation * red * RED_WEIGHT; 
+            // let new_red = exposure_transformation * red * RED_WEIGHT;
             // let new_green = exposure_transformation * green * GREEN_WEIGHT;
             // let new_blue = exposure_transformation * blue * BLUE_WEIGHT;
             // pixel[0] = clamp(new_red.round(), 0.0, 255.0) as u8;
@@ -56,7 +56,7 @@ pub fn exposure_compensation_mut_rgb(image: &mut RgbaImage, exposure_compensatio
     }
 }
 
-// color shift will occur if the pixel becomes too bright and 1 or 2 of the 
+// color shift will occur if the pixel becomes too bright and 1 or 2 of the
 // color channels clip when converted back to rgb if they weren't clipped before
 // this only occurs when increasing brightness
 // will have to figure out how image editors get around this problem
@@ -81,6 +81,109 @@ pub fn change_saturation_mut(saturation_data: &mut [f32], new_saturation: f32) {
         *saturation = clamp(*saturation + add_value, 0.0, 1.0);
     }
 }
+
+pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
+    use crate::statistics::histogram::cumulative_intensity_histogram;
+    use std::u8;
+
+    let pixels_total = intensity_data.len() as f64;
+    let cumulative_histogram = cumulative_intensity_histogram(intensity_data);
+    let (percentage_low, percentage_high) = (0.01_f64, 0.01_f64);
+
+    let image_low = pixels_total as f64 * percentage_low;
+    let image_min: u8 = {
+        let mut minimum: u8 = u8::MAX;
+        for (index, value) in cumulative_histogram.iter().enumerate() {
+            if *value as f64 >= image_low {
+                if (index as u8) < minimum {
+                    minimum = index as u8;
+                }
+            }
+        }
+        minimum
+    };
+
+    let image_high = pixels_total as f64 * (1.0 - percentage_high);
+    let image_max: u8 = {
+        let mut maximum: u8 = u8::MIN;
+        for (index, value) in cumulative_histogram.iter().enumerate() {
+            if *value as f64 <= image_high {
+                if (index as u8) > maximum {
+                    maximum = index as u8;
+                }
+            }
+        }
+        maximum
+    };
+
+    for intensity in intensity_data.iter_mut() {
+        if *intensity <= image_low as u8 {
+            *intensity = image_min;
+        } else if *intensity >= image_high as u8 {
+            *intensity = image_max
+        } else {
+            let new_intensity = u8::MIN as f64
+                + (*intensity as f64 - image_low as f64) * (image_max - image_min) as f64
+                    / (image_high - image_low) as f64;
+            *intensity = clamp(new_intensity.round(), u8::MIN as f64, u8::MAX as f64) as u8;
+        }
+    }
+}
+/// saturates percentage of pixels from the bottom and top of the image intensity spectrum
+/// then linearly distributes the pixels within that spectrum
+// pub fn modified_auto_contrast_mut(intensity_data: &mut [u8]) {
+//     use crate::statistics::histogram::cumulative_gray_histogram;
+
+//     let (percentage_min, percentage_max) = (0.01_f64, 0.01_f64);
+//     let cumulative_histogram = cumulative_gray_histogram(&image);
+//     let pixels_total: f64 = {
+//         let (width, height) = image.dimensions();
+//         (width * height) as f64
+//     };
+
+//     let image_min_value: u8 = {
+//         let mut minimum: u8 = MAX_VALUE;
+//         for (i, value) in cumulative_histogram.values.iter().enumerate() {
+//             if *value as f64 >= pixels_total * percentage_min {
+//                 if (i as u8) < minimum {
+//                     minimum = i as u8;
+//                 }
+//             }
+//         }
+//         // dbg!(minimum);
+//         minimum
+//     };
+
+//     let image_max_value: u8 = {
+//         let mut maximum: u8 = MIN_VALUE;
+//         for (i, value) in cumulative_histogram.values.iter().enumerate() {
+//             if *value as f64 <= pixels_total * (1.0 - percentage_max) {
+//                 if (i as u8) > maximum {
+//                     maximum = i as u8;
+//                 }
+//             }
+//         }
+//         // dbg!(maximum);
+//         maximum
+//     };
+
+//     for pixel in image.pixels_mut() {
+//         let pixel_value = f64::from(pixel.data[0]);
+
+//         if pixel_value <= image_min_value as f64 {
+//             pixel.data[0] = MIN_VALUE;
+//         } else if pixel_value >= image_max_value as f64 {
+//             pixel.data[0] = MAX_VALUE;
+//         } else {
+//             let new_pixel_value = f64::from(MIN_VALUE)
+//                 + (pixel_value - image_min_value as f64) * f64::from(MAX_VALUE)
+//                     / (image_max_value - image_min_value) as f64;
+//             let new_pixel_value = new_pixel_value.round() as i64;
+//             let new_pixel_value = clamp_pixel(new_pixel_value);
+//             pixel.data[0] = new_pixel_value;
+//         }
+//     }
+// }
 
 // TODO add contrast mut function
 
