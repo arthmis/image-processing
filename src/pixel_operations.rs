@@ -82,6 +82,26 @@ pub fn change_saturation_mut(saturation_data: &mut [f32], new_saturation: f32) {
     }
 }
 
+// work on this some more
+pub fn change_contrast_mut(intensity_data: &mut [u8], contrast_change: f32) {
+    let contrast_change: f32 = {
+        let normalized_contrast: f32 = if contrast_change > 200.0 {
+            200.0
+        } else if contrast_change < 0.0 {
+            0.0
+        } else {
+            contrast_change
+        };
+        normalized_contrast
+    };
+
+    for intensity in intensity_data.iter_mut() {
+        let mut new_intensity = (*intensity - 128) as f32 * contrast_change + 128.0;
+        new_intensity = clamp(new_intensity.round(), 0.0, 255.0);
+        *intensity = new_intensity as u8;
+    }
+} 
+
 pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
     use crate::statistics::histogram::cumulative_intensity_histogram;
     use std::u8;
