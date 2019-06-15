@@ -401,15 +401,10 @@ pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
 // }
 
 /// inverts image in place
-pub fn invert_mut<I, P, S>(image: &mut I)
-where
-    I: GenericImage<Pixel = P>,
-    P: Pixel<Subpixel = S> + 'static,
-    S: Primitive + 'static,
-{
+pub fn invert_mut(image: &mut RgbaImage) {
+    use std::u8;
     let apply_color = |x| {
-        let max: S = NumCast::from(MAX_VALUE).unwrap();
-        max - x
+        u8::MAX - x
     };
     let (width, height) = image.dimensions();
     for x in 0..width {
@@ -421,16 +416,16 @@ where
     }
 }
 
-pub fn invert<I, P, S>(image: &I) -> I
-where
-    I: GenericImage<Pixel = P> + Clone,
-    P: Pixel<Subpixel = S> + 'static,
-    S: Primitive + 'static,
-{
-    let mut new_image = image.clone();
-    invert_mut(&mut new_image);
-    new_image
-}
+// pub fn invert<I, P, S>(image: &I) -> I
+// where
+//     I: GenericImage<Pixel = P> + Clone,
+//     P: Pixel<Subpixel = S> + 'static,
+//     S: Primitive + 'static,
+// {
+//     let mut new_image = image.clone();
+//     invert_mut(&mut new_image);
+//     new_image
+// }
 
 // // pub fn invert_grayscale_threaded(image: &mut GrayAlphaImage) -> GrayAlphaImage {
 

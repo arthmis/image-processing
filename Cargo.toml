@@ -5,15 +5,19 @@ edition = "2018"
 authors = []
 
 [dependencies]
-image = {git = "https://github.com/image-rs/image"}
+image = { git = "https://github.com/image-rs/image" }
 crossbeam = "0.7"
 num_cpus = "1.0"
 num-traits = "0.2"
+
+[features]
+display-window = ["sdl2"]
 
 [dependencies.sdl2]
 version = "0.32.1"
 default-features = false
 features = ["bundled"]
+optional = true
 
 [dev-dependencies]
 criterion = "0.2"
