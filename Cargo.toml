@@ -1,14 +1,14 @@
 [package]
 name = "image_processing"
 version = "0.1.0"
+authors = ["lazypassion <25536767+lazypassion@users.noreply.github.com>"]
 edition = "2018"
-authors = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 image = { git = "https://github.com/image-rs/image" }
-crossbeam = "0.7"
-num_cpus = "1.0"
-num-traits = "0.2"
+# coz = "0.1"
 
 [features]
 display-window = ["sdl2"]
@@ -17,20 +17,22 @@ display-window = ["sdl2"]
 version = "0.32.1"
 default-features = false
 features = ["bundled"]
-optional = true
+optional = true 
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3"
+
+[profile.release]
+opt-level = 3 
+# lto = true
+debug = true
+codegen-units = 1
+
+# benchmarks
+[[bench]]
+name = "sobel"
+harness = false
 
 [[bench]]
-name = "histogram_specification"
-harness = false 
-
-# [[bench]]
-# name = "histograms"
-# harness = false
-
-[profile.dev]
-opt-level = 2 
-debug = true
-incremental = true
+name = "blur"
+harness = false

@@ -1,158 +1,192 @@
 //! Operations that only deal with one pixel
 
-use image::{GenericImage, Pixel, Primitive, RgbaImage};
-use num_traits::cast::NumCast;
+use image::{Pixel, RgbaImage, GrayImage};
+// use num_traits::cast::NumCast;
 
-const MAX_VALUE: u8 = 255;
-// const MIN_VALUE: u8 = 0;
-/// Weighted values to turn rgb to luma
-const RED_WEIGHT: f32 = 0.299;
-const GREEN_WEIGHT: f32 = 0.587;
-const BLUE_WEIGHT: f32 = 0.114;
 
-pub fn clamp<T: Primitive>(value: T, min: T, max: T) -> T {
-    if value < min {
-        min
-    } else if value > max {
-        max
-    } else {
-        value
-    }
-}
-
-pub fn luma_weighted(red: f32, green: f32, blue: f32) -> f32 {
-    red * RED_WEIGHT + green * GREEN_WEIGHT + blue * BLUE_WEIGHT
-}
-
-pub fn exposure_compensation_mut_rgb(image: &mut RgbaImage, exposure_compensation: f32) {
+// pub fn invert_mut(image: &mut GrayImage) {
+pub fn invert_mut(image: &mut RgbaImage) {
+    use std::u8;
+    let apply_color = |x| {
+        u8::MAX - x
+    };
     let (width, height) = image.dimensions();
     for y in 0..height {
         for x in 0..width {
-            if x == 297 && y == 165 {
-                let pixel = image.get_pixel(x, y);
-                dbg!(pixel[0]);
-                dbg!(pixel[1]);
-                dbg!(pixel[2]);
-            }
-            image.get_pixel_mut(x, y).apply_without_alpha(|value| {
-                let value: f32 = NumCast::from(value).expect("failed cast from u8 to f64");
-                let new_value = value * (2.0_f32.powf(exposure_compensation));
-                let new_value = clamp(new_value.round(), 0.0, 255.0);
-                NumCast::from(new_value.round()).expect("failed cast from f64 to u8")
-            });
-            // let pixel = image.get_pixel_mut(x, y).channels_mut();
-            // // println!("{:?}", pixel[0]);
-            // let red: f32 = NumCast::from(pixel[0]).unwrap();
-            // let green: f32 = NumCast::from(pixel[1]).unwrap();
-            // let blue: f32 = NumCast::from(pixel[2]).unwrap();
-            // let exposure_transformation = 2.0_f32.powf(exposure_compensation);
-            // let new_red = exposure_transformation * red * RED_WEIGHT;
-            // let new_green = exposure_transformation * green * GREEN_WEIGHT;
-            // let new_blue = exposure_transformation * blue * BLUE_WEIGHT;
-            // pixel[0] = clamp(new_red.round(), 0.0, 255.0) as u8;
-            // pixel[1] = clamp(new_green.round(), 0.0, 255.0) as u8;
-            // pixel[2] = clamp(new_blue.round(), 0.0, 255.0) as u8;
+            image
+                .get_pixel_mut(x, y)
+                .apply_without_alpha(apply_color);
         }
     }
 }
 
-// color shift will occur if the pixel becomes too bright and 1 or 2 of the
-// color channels clip when converted back to rgb if they weren't clipped before
-// this only occurs when increasing brightness
-// will have to figure out how image editors get around this problem
-pub fn exposure_compensation_mut(brightness_data: &mut [u8], exposure_compensation: f32) {
-    for brightness in brightness_data.iter_mut() {
-        let value: f32 = NumCast::from(*brightness).expect("failed cast from u8 to f32");
-        // let value_to_add = 2.0_f32.powf(exposure_compensation);
-        // let value_to_add = value * exposure_compensation;
-        let mut new_value = value * (2.0_f32.powf(exposure_compensation));
-        // let mut new_value = value + value_to_add;
-        new_value = clamp(new_value.round(), 0.0, 255.0);
-        *brightness = NumCast::from(new_value).expect("failed cast from f32 to u8");
+pub fn convert_to_grayscale(image: &mut RgbaImage) {
+    let (width, height) = image.dimensions();
+    let channel_count = 4;
+    let alpha_count = 1;
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel_mut(x, y);
+            let pixel_slice = &mut pixel.0[0..channel_count - alpha_count];
+            let red = pixel_slice[0] as f32 * 0.299;
+            let green = pixel_slice[1] as f32 * 0.587;
+            let blue = pixel_slice[2] as f32 * 0.114;
+            let gray_value = red as u8 + green as u8 + blue as u8;
+            pixel_slice[0] = gray_value;
+            pixel_slice[1] = gray_value;
+            pixel_slice[2] = gray_value;
+        }
     }
 }
 
-/// positive value increases saturation and negative decreases it
-/// the input value will be used as a percentage to increase the saturation
-// put an example of how to use
-pub fn change_saturation_mut(saturation_data: &mut [f32], new_saturation: f32) {
-    for saturation in saturation_data.iter_mut() {
-        let add_value = *saturation * new_saturation;
-        *saturation = clamp(*saturation + add_value, 0.0, 1.0);
-    }
-}
-
-// work on this some more
-pub fn change_contrast_mut(intensity_data: &mut [u8], contrast_change: f32) {
-    let contrast_change: f32 = {
-        let normalized_contrast: f32 = if contrast_change > 200.0 {
-            200.0
-        } else if contrast_change < 0.0 {
-            0.0
-        } else {
-            contrast_change
-        };
-        normalized_contrast
-    };
-
-    for intensity in intensity_data.iter_mut() {
-        let mut new_intensity = (*intensity - 128) as f32 * contrast_change + 128.0;
-        new_intensity = clamp(new_intensity.round(), 0.0, 255.0);
-        *intensity = new_intensity as u8;
-    }
-} 
-
-pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
-    use crate::statistics::histogram::cumulative_intensity_histogram;
-    use std::u8;
-
-    let pixels_total = intensity_data.len() as f32;
-    let cumulative_histogram = cumulative_intensity_histogram(intensity_data);
-    let (percentage_low, percentage_high) = (0.01_f32, 0.01_f32);
-
-    let image_low: u8 = {
-        let image_low = pixels_total as f32 * percentage_low;
-        let mut minimum_intensity = u8::MAX;
-        for (intensity, value) in cumulative_histogram.iter().enumerate() {
-            if *value as f32 >= image_low {
-                if (intensity as u8) < minimum_intensity {
-                    minimum_intensity = intensity as u8;
-                }
+pub fn threshold_mut(image: &mut GrayImage, threshold: u8) {
+    let (width, height) = image.dimensions();
+    for y in 0..height {
+        for x in 0..width {
+            if image.get_pixel(x, y).0[0] > threshold {
+                image.get_pixel_mut(x, y).0[0] = 255;
+            } else {
+                image.get_pixel_mut(x, y).0[0] = 0;
             }
         }
+    }
+}
+// /// inverts image in place
+// pub fn invert_mut<I, P, S>(image: &mut I) 
+// where
+//     I: GenericImage<Pixel = P> + Clone,
+//     P: Pixel<Subpixel = S> + 'static,
+//     S: Primitive + 'static,
+// {
+//     use std::u8;
+//     let apply_color = |x| {
+//         u8::MAX - x
+//     };
+//     let (width, height) = image.dimensions();
+//     for x in 0..width {
+//         for y in 0..height {
+//             image
+//                 .get_pixel_mut(x, y)
+//                 .apply_without_alpha(apply_color);
+//         }
+//     }
+// }
+
+// pub fn invert<I, P, S>(image: &I) -> I
+// where
+//     I: GenericImage<Pixel = P> + Clone,
+//     P: Pixel<Subpixel = S> + 'static,
+//     S: Primitive + 'static,
+// {
+//     let mut new_image = image.clone();
+//     invert_mut(&mut new_image);
+//     new_image
+// }
+
+// http://learnwebgl.brown37.net/model_data/model_color.html
+// pub fn brightness_change_mut(image: &mut RgbaImage, brightness: f32) {
+//     // this current formula only increases brightness of every pixel and cannot
+//     // also make them darker
+//     // have to look up why this works
+//         let (width, height) = image.dimensions();
+//         let apply_brightness = |color| {
+//             let mut color = color as f32 / 255.0;
+//             color = color + (1.0 - color) * brightness;
+//             clamp((color * 255.0).round() as u8, 0, 255)
+//         };
+//         for y in 0..height {
+//             for x in 0..width {
+//                 image.get_pixel_mut(x, y)
+//                     .apply_without_alpha(apply_brightness);
+//             }
+//         }
+// }
+
+// /// positive value increases saturation and negative decreases it
+// /// the input value will be used as a percentage to increase the saturation
+// // put an example of how to use
+// pub fn change_saturation_mut(saturation_data: &mut [f32], new_saturation: f32) {
+//     for saturation in saturation_data.iter_mut() {
+//         let add_value = *saturation * new_saturation;
+//         *saturation = clamp(*saturation + add_value, 0.0, 1.0);
+//     }
+// }
+
+// // work on this some more
+// pub fn change_contrast_mut(intensity_data: &mut [u8], contrast_change: f32) {
+//     let contrast_change: f32 = {
+//         // let normalized_contrast: f32 = if contrast_change > 200.0 {
+//         //     200.0
+//         // } else if contrast_change < 0.0 {
+//         //     0.0
+//         // } else {
+//         //     contrast_change
+//         // };
+//         // normalized_contrast
+//         clamp(contrast_change, -255.0, 255.0)
+//     };
+
+//     for intensity in intensity_data.iter_mut() {
+//         let factor = 259.0 * (contrast_change + 255.0) / (255.0 * (259.0 - contrast_change));
+//         // let mut new_intensity = contrast_change * (*intensity as f32 - 128.0) + 128.0;
+//         let mut new_intensity = factor * (*intensity as f32 - 128.0) + 128.0;
+//         // let mut new_intensity = contrast_change * *intensity as f32;
+//         new_intensity = clamp(new_intensity.round(), 0.0, 255.0);
+//         *intensity = new_intensity as u8;
+//     }
+// } 
+
+// pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
+//     use crate::histogram::cumulative_intensity_histogram;
+//     use std::u8;
+
+//     let pixels_total = intensity_data.len() as f32;
+//     let cumulative_histogram = cumulative_intensity_histogram(intensity_data);
+//     let (percentage_low, percentage_high) = (0.01_f32, 0.01_f32);
+
+//     let image_low: u8 = {
+//         let image_low = pixels_total as f32 * percentage_low;
+//         let mut minimum_intensity = u8::MAX;
+//         for (intensity, value) in cumulative_histogram.iter().enumerate() {
+//             if *value as f32 >= image_low {
+//                 if (intensity as u8) < minimum_intensity {
+//                     minimum_intensity = intensity as u8;
+//                 }
+//             }
+//         }
         
-        minimum_intensity
-    };
+//         minimum_intensity
+//     };
     
 
-    let image_high: u8 = {
-        let image_high = pixels_total as f32 * (1.0 - percentage_high);
-        let mut maximum_intensity = u8::MIN;
-        for (intensity, value) in cumulative_histogram.iter().enumerate() {
-            if *value as f32 <= image_high {
-                if (intensity as u8) > maximum_intensity {
-                    maximum_intensity = intensity as u8;
-                }
-            }
-        }
-        maximum_intensity
-    };
+//     let image_high: u8 = {
+//         let image_high = pixels_total as f32 * (1.0 - percentage_high);
+//         let mut maximum_intensity = u8::MIN;
+//         for (intensity, value) in cumulative_histogram.iter().enumerate() {
+//             if *value as f32 <= image_high {
+//                 if (intensity as u8) > maximum_intensity {
+//                     maximum_intensity = intensity as u8;
+//                 }
+//             }
+//         }
+//         maximum_intensity
+//     };
 
-    for intensity in intensity_data.iter_mut() {
-        if *intensity <= image_low as u8 {
-            *intensity = u8::MIN;
-        } else if *intensity >= image_high as u8 {
-            *intensity = u8::MAX; 
-        } else {
-            let new_intensity = u8::MIN as f32
-                + (*intensity as f32 - image_low as f32) * (u8::MAX - u8::MIN) as f32
-                    / (image_high - image_low) as f32;
-            *intensity = clamp(new_intensity.round(), u8::MIN as f32, u8::MAX as f32) as u8;
-        }
-    }
-}
-/// saturates percentage of pixels from the bottom and top of the image intensity spectrum
-/// then linearly distributes the pixels within that spectrum
+//     for intensity in intensity_data.iter_mut() {
+//         if *intensity <= image_low as u8 {
+//             *intensity = u8::MIN;
+//         } else if *intensity >= image_high as u8 {
+//             *intensity = u8::MAX; 
+//         } else {
+//             let new_intensity = u8::MIN as f32
+//                 + (*intensity as f32 - image_low as f32) * (u8::MAX - u8::MIN) as f32
+//                     / (image_high - image_low) as f32;
+//             *intensity = clamp(new_intensity.round(), u8::MIN as f32, u8::MAX as f32) as u8;
+//         }
+//     }
+// }
+// / saturates percentage of pixels from the bottom and top of the image intensity spectrum
+// / then linearly distributes the pixels within that spectrum
 // pub fn modified_auto_contrast_mut(intensity_data: &mut [u8]) {
 //     use crate::statistics::histogram::cumulative_gray_histogram;
 
@@ -299,55 +333,9 @@ pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
 //     new_image
 // }
 
-// /// auto contrast enhancement by mapping the lowest and highest pixel to minimum
-// /// and maximum intensity values, respectively, and restributing the rest of the pixels
-// pub fn auto_contrast_mut(image: &mut GrayAlphaImage) {
-//     let min_pixel = {
-//         let mut min: u8 = MAX_VALUE;
-//         for pixel in image.pixels() {
-//             if pixel.data[0 as usize] < min {
-//                 min = pixel.data[0 as usize];
-//             }
-//         }
-//         f64::from(min)
-//     };
-
-//     let max_pixel = {
-//         let mut max: u8 = MIN_VALUE;
-//         for pixel in image.pixels() {
-//             if pixel.data[0 as usize] > max {
-//                 max = pixel.data[0 as usize];
-//             }
-//         }
-//         f64::from(max)
-//     };
-
-//     for pixel in image.pixels_mut() {
-//         let pixel_value = f64::from(pixel.data[0]);
-//         let new_pixel_value = f64::from(MIN_VALUE)
-//             + (pixel_value - min_pixel) * f64::from(MAX_VALUE) / (max_pixel - min_pixel);
-//         let new_pixel_value = new_pixel_value.round() as i64;
-//         let new_pixel_value = clamp_pixel(new_pixel_value);
-//         pixel.data[0] = new_pixel_value;
-//     }
-// }
-
-// /// automatic contrast adjustment
-// // TODO continue tweaking this to work better and use modified auto contrast
-// // consider creating an alternate function that accepts lower and upper bound for
-// // contrast range
-// /// see auto contrast mut
-// pub fn auto_contrast(image: &GrayAlphaImage) -> GrayAlphaImage {
-//     let mut new_image = image.clone();
-//     auto_contrast_mut(&mut new_image);
-//     new_image
-// }
-
-// // TODO add brightness mut function
-
-// /// brightness adjustments
-// /// brightness range is [-256, 255] inclusive
-// /// negative values decrease brightness
+// / brightness adjustments
+// / brightness range is [-256, 255] inclusive
+// / negative values decrease brightness
 // pub fn brightness(image: &GrayAlphaImage, brightness: i16) -> GrayAlphaImage {
 //     let mut new_image = image.clone();
 //     brightness_mut(&mut new_image, brightness);
@@ -358,7 +346,7 @@ pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
 // use image::Primitive;
 // use image::GenericImage;
 // use image::Pixel;
-// // pub fn brightness_mut<I, P, S>(image: &mut GrayAlphaImage, brightness: i16)
+// pub fn brightness_mut<I, P, S>(image: &mut GrayAlphaImage, brightness: i16)
 // pub fn brightness_mut<I, P, S>(image: &mut I, brightness: i16)
 // where
 //     I: GenericImage<Pixel = P>,
@@ -400,61 +388,9 @@ pub fn auto_contrast_mut(intensity_data: &mut [u8]) {
 //     // }
 // }
 
-/// inverts image in place
-pub fn invert_mut(image: &mut RgbaImage) {
-    use std::u8;
-    let apply_color = |x| {
-        u8::MAX - x
-    };
-    let (width, height) = image.dimensions();
-    for x in 0..width {
-        for y in 0..height {
-            image
-                .get_pixel_mut(x, y)
-                .apply_with_alpha(apply_color, |alpha| alpha);
-        }
-    }
-}
 
-// pub fn invert<I, P, S>(image: &I) -> I
-// where
-//     I: GenericImage<Pixel = P> + Clone,
-//     P: Pixel<Subpixel = S> + 'static,
-//     S: Primitive + 'static,
-// {
-//     let mut new_image = image.clone();
-//     invert_mut(&mut new_image);
-//     new_image
-// }
 
-// // pub fn invert_grayscale_threaded(image: &mut GrayAlphaImage) -> GrayAlphaImage {
-
-// //     use crossbeam::thread;
-// //     use num_cpus;
-// //     use image::GenericImage;
-
-// //     let cpus_num = num_cpus::get();
-
-// //     let (width, height) = image.dimensions();
-// //     thread::scope(|s| {
-// //         // use chunks_mut or find a way to use it
-// //         let x = 0;
-// //         let mut y = 0;
-// //         let y_offset = width / cpus_num as u32;
-// //         for thread in 0..cpus_num {
-// //             let mut sub_image = image.sub_image(x, y, width, y_offset);
-// //             s.spawn(move |_| {
-// //                 for pixel in sub_image.pixels_mut() {
-// //                     pixel.2.data[0] = MAX_VALUE - pixel.2.data[0];
-// //                 }
-// //             });
-// //             y += y_offset;
-// //         }
-// //     }).unwrap();
-// //     image.clone();
-// // }
-
-// /// thresholds image in place
+// / thresholds image in place
 // pub fn threshold_mut(image: &mut GrayAlphaImage, threshold: u8) {
 //     for pixel in image.pixels_mut() {
 //         if pixel.data[0 as usize] < threshold {
@@ -491,7 +427,7 @@ pub fn invert_mut(image: &mut RgbaImage) {
 // }
 
 // pub fn equalize_histogram(image: &GrayAlphaImage) -> GrayAlphaImage {
-//     use crate::statistics::histogram::cumulative_gray_histogram;
+//     use crate::histogram::cumulative_gray_histogram;
 
 //     let mut new_image = image.clone();
 //     let cumulative_hist = cumulative_gray_histogram(image);
