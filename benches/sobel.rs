@@ -26,10 +26,10 @@ pub fn sobel_x_y(c: &mut Criterion) {
         b.iter(|| sobel_mut(black_box(&mut image)));
     });
     group.bench_function("Sobel x", move |b| {
-        b.iter(|| sobel_mut(black_box(&mut x_image)));
+        b.iter(|| sobel_x(black_box(&mut x_image)));
     });
     group.bench_function("Sobel y", move |b| {
-        b.iter(|| sobel_mut(black_box(&mut y_image)));
+        b.iter(|| sobel_y(black_box(&mut y_image)));
     });
 
     group.finish();
