@@ -90,11 +90,17 @@ pub fn gaussian_filter_mut(filter: GaussianKernel, image: &mut GrayImage) {
             let end: i32 = x as i32 + filter_radius;  
             for (i, filter_val) in (begin..=end).zip(filter.iter()) {
                 if i < 0 {
-                    sum += image.get_pixel(x, y).0[0] as f32 * filter_val; 
+                    unsafe {
+                        sum += image.unsafe_get_pixel(x, y).0[0] as f32 * filter_val; 
+                    }
                 } else if i >= width as i32 {
-                    sum += image.get_pixel(x, y).0[0] as f32 * filter_val; 
+                    unsafe {
+                        sum += image.unsafe_get_pixel(x, y).0[0] as f32 * filter_val; 
+                    }
                 } else {
-                    sum += image.get_pixel(i as u32, y).0[0] as f32 * filter_val;
+                    unsafe {
+                        sum += image.unsafe_get_pixel(i as u32, y).0[0] as f32 * filter_val;
+                    }
                 }
             }
             horizontal_blur_image.get_pixel_mut(x, y).0[0] = sum.round() as u8; 
@@ -110,11 +116,17 @@ pub fn gaussian_filter_mut(filter: GaussianKernel, image: &mut GrayImage) {
            
             for (i, filter_val) in (begin..=end).zip(filter.iter()) {
                 if i < 0 {
-                    sum += horizontal_blur_image.get_pixel(x, y).0[0] as f32 * filter_val; 
+                    unsafe {
+                        sum += horizontal_blur_image.unsafe_get_pixel(x, y).0[0] as f32 * filter_val; 
+                    }
                 } else if i >= height as i32 {
-                    sum += horizontal_blur_image.get_pixel(x, y).0[0] as f32 * filter_val; 
+                    unsafe {
+                        sum += horizontal_blur_image.unsafe_get_pixel(x, y).0[0] as f32 * filter_val; 
+                    }
                 } else {
-                    sum += horizontal_blur_image.get_pixel(x, i as u32).0[0] as f32 * filter_val;
+                    unsafe {
+                        sum += horizontal_blur_image.unsafe_get_pixel(x, i as u32).0[0] as f32 * filter_val;
+                    }
                 }
             }
             image.get_pixel_mut(x, y).0[0] = sum.round() as u8; 

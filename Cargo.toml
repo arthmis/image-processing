@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 image = { git = "https://github.com/image-rs/image" }
-# coz = "0.1"
 
 [features]
 display-window = ["sdl2"]
