@@ -22,8 +22,6 @@ pub fn blur(c: &mut Criterion) {
         .to_luma();
 
     let mut box_image = gauss_image.clone();
-    let mut box_image_1 = box_image.clone();
-    let mut box_image_2 = box_image.clone();
     let image_blur = gauss_image.clone();
     let imageproc_blur = gauss_image.clone();
 
@@ -31,20 +29,12 @@ pub fn blur(c: &mut Criterion) {
     let size = 7;
     let box_filter = MeanKernel::new(size);
 
-    // group.bench_function("fast box horizontal", |b| {
-    //     b.iter(|| {
-    //         fast_box_blur(black_box(box_filter), black_box(&mut box_image));
-    //     });
-    // });
-    // group.bench_function("Gaussian", |b| {
-    //     b.iter(|| gaussian_filter_mut(black_box(&gauss), black_box(&mut gauss_image)));
-    // });
-    // group.bench_function("separable box", |b| {
-    //     b.iter(|| mean_filter_mut(black_box(box_filter), black_box(&mut box_image_1)));
-    // });
-    group.bench_function("faster box horizontal", |b| {
-        b.iter(|| faster_box_blur(black_box(box_filter), black_box(&mut box_image_2)));
+    group.bench_function("fast box horizontal", |b| {
+        b.iter(|| {
+            box_filter_mut(black_box(box_filter), black_box(&mut box_image));
+        });
     });
+
     // group.bench_function("Image Gaussian", |b| {
     //     b.iter(|| imageops::blur(black_box(&image_blur), black_box(1.0)));
     // });

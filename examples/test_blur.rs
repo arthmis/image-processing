@@ -17,11 +17,8 @@ fn main() {
 
     let size = 11;
 
-    // fast_box_blur(MeanKernel::new(size), &mut box_image);
-    faster_box_blur(MeanKernel::new(size), &mut box_image);
-    // let new_image = box_filter_1(MeanKernel::new(size), &mut box_image);
+    box_filter_mut(MeanKernel::new(size), &mut box_image);
 
-    // display_image("box", &new_image.convert(), width, height);
     display_image("box", &box_image.convert(), width, height);
 }
 

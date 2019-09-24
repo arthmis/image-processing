@@ -126,110 +126,12 @@ pub fn gaussian_filter_mut(filter: &GaussianKernel, image: &mut GrayImage) {
         }
     }
 }
-pub fn mean_filter_mut(filter: MeanKernel, image: &mut GrayImage) {
-    let (width, height) = image.dimensions();
 
-    let mut horizontal_blur_image: GrayImage = ImageBuffer::new(width, height);
-    // want the truncated value of this division, hence not using float
-    let filter_radius: i32 = filter.size() as i32 / 2;
-    let filter_size = filter.size();
-
-    // blur horizontally
-    for y in 0..height {
-        for x in 0..width {
-            let mut sum: u32 = 0;
-            let begin: i32 = x as i32 - filter_radius;
-            let end: i32 = x as i32 + filter_radius;  
-            
-            for i in begin..=end {
-                if i < 0 {
-                    sum += image.get_pixel(x, y).0[0] as u32; 
-                } else if i >= width as i32 {
-                    sum += image.get_pixel(x, y).0[0] as u32; 
-                } else {
-                    sum += image.get_pixel(i as u32, y).0[0] as u32;
-                }
-            }
-            horizontal_blur_image.get_pixel_mut(x, y).0[0] = (sum as f32 / filter_size as f32) as u8; 
-        }
-    }
-
-    // blur vertically
-    for y in 0..height {
-        for x in 0..width {
-            let mut sum: u32 = 0;
-            let begin: i32 = y as i32 - filter_radius;
-            let end: i32 = y as i32 + filter_radius;  
-            for i in begin..=end {
-                if i < 0 {
-                    sum += horizontal_blur_image.get_pixel(x, y).0[0] as u32; 
-                } else if i >= height as i32 {
-                    sum += horizontal_blur_image.get_pixel(x, y).0[0] as u32; 
-                } else {
-                    sum += horizontal_blur_image.get_pixel(x, i as u32).0[0] as u32;
-                }
-            }
-            image.get_pixel_mut(x, y).0[0] = (sum as f32 / filter_size as f32) as u8; 
-        }
-    }
-
-}
-
-pub fn fast_box_blur(filter: MeanKernel, image: &mut GrayImage) {
-    use crate::matrix_ops::*;
-
-    let (width, height) = image.dimensions();
-
-    // want the truncated value of this division, hence not using float
-    let radius: i32 = filter.size() as i32 / 2;
-
-    let mut transpose_image: GrayImage = ImageBuffer::new(height, width);
-    let mut new_image = ImageBuffer::new(width, height);
-    let mut transpose_img_scratch: GrayImage = ImageBuffer::new(height, width);
-
-    horizontal_blur(radius, image, &mut new_image);
-    fast_transpose(&new_image, &mut transpose_image, width as usize, height as usize);
-    horizontal_blur(radius, &transpose_image, &mut transpose_img_scratch);
-    fast_transpose(&transpose_img_scratch, &mut *image, height as usize, width as usize);
-}
-
-fn horizontal_blur(radius: i32, image: &GrayImage, blur_image: &mut GrayImage) {
-    let scale = 1.0 / (2.0 * radius as f32 + 1.0);
-    let (width, height) = image.dimensions();
-
-    for y in 0..height {
-        let mut sum = {
-            let mut sum: f32 = 0.0;
-            let begin = 0 - radius;
-            let end = 0 + radius;
-            for i in begin..=end {
-                if i < 0 {
-                    sum += image.get_pixel(0, y).0[0] as f32;
-                } else if i >= width as i32 {
-                    sum += image.get_pixel(width - 1, y).0[0] as f32;
-                } else {
-                    sum += image.get_pixel(i as u32, y).0[0] as f32;
-                }
-            } 
-            sum
-        };
-        for x in 0..width {
-            let x = x as i32;
-            blur_image.get_pixel_mut(x as u32, y).0[0] = (sum * scale).round() as u8;
-            if x + radius + 1 >= width as i32 && x - radius < 0 {
-                sum += image.get_pixel((width as i32 - 1) as u32, y).0[0] as f32 - image.get_pixel(0, y).0[0] as f32;
-            } else if x + radius + 1 >= width as i32 {
-                sum += image.get_pixel((width - 1) as u32, y).0[0] as f32 - image.get_pixel((x - radius) as u32, y).0[0] as f32;
-            } else if x - radius < 0 {
-                sum += image.get_pixel((x + radius + 1) as u32, y).0[0] as f32 - image.get_pixel(0, y).0[0] as f32;
-            } else {
-                sum += image.get_pixel((x + radius + 1) as u32, y).0[0] as f32 - image.get_pixel((x - radius) as u32, y).0[0] as f32;
-            }
-        }
-    } 
-}
-
-pub fn faster_box_blur(filter: MeanKernel, image: &mut GrayImage) {
+// got the algorithm for this box blur from here
+// https://fgiesen.wordpress.com/2012/07/30/fast-blurs-1/
+// http://elynxsdk.free.fr/ext-docs/Blur/Fast_box_blur.pdf
+// this filter still isn't complete because it can't take even sized filters
+pub fn box_filter_mut(filter: MeanKernel, image: &mut GrayImage) {
     use crate::matrix_ops::*;
 
     let (width, height) = image.dimensions();
@@ -239,13 +141,13 @@ pub fn faster_box_blur(filter: MeanKernel, image: &mut GrayImage) {
 
     let mut new_image: GrayImage = ImageBuffer::new(width, height);
 
-    faster_horizontal_blur(radius, image, &mut new_image, width, height);
+    horizontal_blur(radius, image, &mut new_image, width, height);
     fast_transpose(&new_image, &mut *image, width as usize, height as usize);
-    faster_horizontal_blur(radius, image, &mut new_image, height, width);
+    horizontal_blur(radius, image, &mut new_image, height, width);
     fast_transpose(&new_image, &mut *image, height as usize, width as usize);
 } 
 
-fn faster_horizontal_blur(radius: i32, image: &[u8], blur_image: &mut [u8], width: u32, height: u32) {
+fn horizontal_blur(radius: i32, image: &[u8], blur_image: &mut [u8], width: u32, height: u32) {
     let scale = 1.0 / (2.0 * radius as f32 + 1.0);
 
     let (width, height) = (width as i32, height as i32);
