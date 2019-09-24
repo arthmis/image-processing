@@ -185,3 +185,60 @@ pub fn mean_filter_mut(filter: MeanKernel, image: &mut GrayImage) {
 
 }
 
+pub fn fast_box_flur(filter: MeanKernel, image: &mut GrayImage) {
+    use crate::matrix_ops::transpose;
+
+    let (width, height) = image.dimensions();
+
+    // want the truncated value of this division, hence not using float
+    let radius: i32 = filter.size() as i32 / 2;
+    let size = filter.size();
+
+    let scale = 1.0 / (2.0 * radius as f32 + 1.0);
+
+    let mut transpose_image: GrayImage = ImageBuffer::new(height, width);
+    // let mut new_image = ImageBuffer::new(width, height);
+    let mut new_image = image.clone();
+    let mut transpose_img_scratch: GrayImage = ImageBuffer::new(height, width);
+
+    horizontal_blur(radius, &new_image, &mut *image);
+    horizontal_blur(radius, image, &mut new_image);
+    transpose(&new_image, &mut transpose_image, width as usize, height as usize);
+    horizontal_blur(radius, &transpose_image, &mut transpose_img_scratch);
+    transpose(&transpose_img_scratch, &mut *image, height as usize, width as usize);
+}
+
+fn horizontal_blur(radius: i32, image: &GrayImage, blur_image: &mut GrayImage) {
+    let scale = 1.0 / (2.0 * radius as f32 + 1.0);
+    let (width, height) = image.dimensions();
+
+    for y in 0..height {
+        let mut sum = {
+            let mut sum: f32 = 0.0;
+            let begin = 0 - radius;
+            let end = 0 + radius;
+            for i in begin..=end {
+                if i < 0 {
+                    sum += image.get_pixel(0, y).0[0] as f32;
+                } else if i >= width as i32 {
+                    sum += image.get_pixel(width - 1, y).0[0] as f32;
+                } else {
+                    sum += image.get_pixel(i as u32, y).0[0] as f32;
+                }
+            } 
+            sum
+        };
+        for x in 0..width {
+            let x = x as i32;
+            blur_image.get_pixel_mut(x as u32, y).0[0] = (sum * scale).round() as u8;
+            if x + radius + 1 >= width as i32 && x - radius < 0 {
+                sum += image.get_pixel((width as i32 - 1) as u32, y).0[0] as f32 - image.get_pixel(0, y).0[0] as f32;
+            } else if x + radius + 1 >= width as i32 {
+                sum += image.get_pixel((width - 1) as u32, y).0[0] as f32 - image.get_pixel((x - radius) as u32, y).0[0] as f32;
+            } else if x - radius < 0 {
+                sum += image.get_pixel((x + radius + 1) as u32, y).0[0] as f32 - image.get_pixel(0, y).0[0] as f32;
+            } else {
+                sum += image.get_pixel((x + radius + 1) as u32, y).0[0] as f32 - image.get_pixel((x - radius) as u32, y).0[0] as f32;
+            }
+        }
+    } 
