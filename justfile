@@ -16,8 +16,20 @@ edge:
 edge-release:
     cargo run --release --example edge_detection --features "display-window"
 
+bench-sobel-save:
+    cargo bench --bench sobel -- --save-baseline sobel_naive
+
 bench-sobel:
     cargo bench --bench sobel -- --baseline sobel_naive
 
+bench-blur-save:
+    cargo bench --bench blur -- --save-baseline blur_naive
+
 bench-blur:
     cargo bench --bench blur -- --baseline blur_naive
+
+bench-transpose-save:
+    cargo bench --bench transpose -- --save-baseline transpose
+
+bench-transpose:
+    cargo bench --bench transpose -- --baseline transpose
