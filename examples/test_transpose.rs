@@ -8,15 +8,13 @@ fn main() {
 
     let (width, height) = (4, 3);
     // transpose(&matrix, &mut matrix_transpose, 4, 3);
-    fast_transpose(&matrix, &mut matrix_transpose, width, height);
-    fast_transpose(&matrix_transpose, &mut matrix, height, width);
+    transpose(&matrix, &mut matrix_transpose, width, height);
     // dbg!(matrix_transpose);
     // dbg!(matrix);
     for y in 0..height {
         for x in 0..width {
             let first_val = matrix[y * width + x];
             let second_val = matrix_transpose[x * height + y];
-            // dbg!(first_val);
             assert!(first_val == second_val, "{} {}", first_val, second_val); 
         }
     }
@@ -24,7 +22,6 @@ fn main() {
         println!();
         for x in 0..width {
             let val = matrix[y * width + x];
-            // dbg!(val);
             print!("{} ", val);
         }
     }
@@ -33,17 +30,15 @@ fn main() {
         println!();
         for x in 0..height {
             let val = matrix_transpose[y * height + x];
-            // dbg!(val);
             print!("{} ", val);
         }
     }
     println!();
-    fast_transpose(&matrix_transpose, &mut re_transpose, height, width);
+    transpose(&matrix_transpose, &mut re_transpose, height, width);
     for y in 0..height {
         println!();
         for x in 0..width {
             let val = matrix[y * width + x];
-            // dbg!(val);
             print!("{} ", val);
         }
     }

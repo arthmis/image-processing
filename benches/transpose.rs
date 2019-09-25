@@ -16,17 +16,17 @@ pub fn blur(c: &mut Criterion) {
     group.sample_size(50);
     group.measurement_time(Duration::from_secs(150));
 
-    let mut image = image::open("./images/england-hampton-court-palace.jpg")
+    let image = image::open("./images/england-hampton-court-palace.jpg")
         .expect("image not found")
         .to_luma();
     let (width, height) = image.dimensions();
 
     let mut first_buffer: GrayImage = ImageBuffer::new(height, width);
 
-    let mut second_image = image.clone();
+    let second_image = image.clone();
     let mut second_buffer: GrayImage = ImageBuffer::new(height, width);
 
-    group.bench_function("naive transpose", |b| {
+    group.bench_function("tiling", |b| {
         b.iter(|| {
             transpose(
                 black_box(&image), 
@@ -36,9 +36,10 @@ pub fn blur(c: &mut Criterion) {
             );
         });
     });
-    group.bench_function("manual cache blocked transpose", |b| {
+
+    group.bench_function("tiling, split loops if width and height are multiples of block size", |b| {
         b.iter(|| {
-            fast_transpose(
+            faster_transpose(
                 black_box(&second_image), 
                 black_box(&mut second_buffer),
                 black_box(width as usize), 
