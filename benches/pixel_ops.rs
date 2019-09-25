@@ -51,5 +51,28 @@ pub fn invert(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, logarithm, invert);
+pub fn power_law_transformation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Power law transformation");
+    group.confidence_level(0.05);
+    group.sample_size(50);
+    group.measurement_time(Duration::from_secs(150));
+
+    let mut image = image::open("./images/england-hampton-court-palace.jpg")
+        .expect("image not found")
+        .to_luma();
+
+    let mut second_image = image.clone();
+
+    let gamma = 1.0;
+
+    group.bench_function("LUT", |b| {
+        b.iter(|| {
+            power_law_transform_mut(black_box(&mut second_image), gamma);
+        });
+    });
+
+    group.finish();
+}
+
+criterion_group!(benches, logarithm, invert, power_law_transformation);
 criterion_main!(benches);

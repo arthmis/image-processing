@@ -1,7 +1,6 @@
 //! Operations that only deal with one pixel
 
 use image::{Pixel, RgbaImage, GrayImage};
-// use num_traits::cast::NumCast;
 
 
 pub fn invert_mut(image: &mut GrayImage) {
@@ -9,8 +8,8 @@ pub fn invert_mut(image: &mut GrayImage) {
     let (width, height) = image.dimensions();
     for pixel in image.pixels_mut() {
         pixel[0] = max - pixel[0]; 
-        }
     }
+}
 
 pub fn convert_to_grayscale(image: &mut RgbaImage) {
     let (width, height) = image.dimensions();
@@ -45,6 +44,7 @@ pub fn threshold_mut(image: &mut GrayImage, threshold: u8) {
 }
 
 // https://homepages.inf.ed.ac.uk/rbf/HIPR2/pixlog.htm
+// TODO make this adjustable by inputting constant factor
 pub fn logarithm_mut(image: &mut GrayImage) {
     use crate::image_max;
     let max_pixel = image_max(image);
@@ -62,3 +62,17 @@ pub fn logarithm_mut(image: &mut GrayImage) {
     }
 }
 
+// https://theailearner.com/2019/01/26/power-law-gamma-transformations/
+pub fn power_law_transform_mut(image: &mut GrayImage, gamma: f32) {
+    let lut = {
+        let mut lut = [0_u8; 256];
+        let max = 255.0;
+        for (i, val) in lut.iter_mut().enumerate() {
+            *val = ((i as f32 / max).powf(gamma) * max).round() as u8;
+        }
+        lut
+    };
+    for pixel in image.pixels_mut() {
+        pixel[0] = lut[pixel[0] as usize];
+    }
+}
