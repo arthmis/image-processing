@@ -63,7 +63,7 @@ pub fn logarithm_mut(image: &mut GrayImage) {
 }
 
 // https://theailearner.com/2019/01/26/power-law-gamma-transformations/
-pub fn power_law_transform_mut(image: &mut GrayImage, gamma: f32) {
+pub fn power_law_transform_mut(image: &mut RgbaImage, gamma: f32) {
     let lut = {
         let mut lut = [0_u8; 256];
         let max = 255.0;
@@ -74,5 +74,7 @@ pub fn power_law_transform_mut(image: &mut GrayImage, gamma: f32) {
     };
     for pixel in image.pixels_mut() {
         pixel[0] = lut[pixel[0] as usize];
+        pixel[1] = lut[pixel[1] as usize];
+        pixel[2] = lut[pixel[2] as usize];
     }
 }

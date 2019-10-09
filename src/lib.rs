@@ -9,6 +9,7 @@ pub mod window;
 pub mod blur;
 pub mod edge_detection;
 pub mod matrix_ops;
+pub mod exposure; 
 
 use image::GrayImage;
 use image::Primitive;
