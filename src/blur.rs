@@ -142,9 +142,9 @@ pub fn box_filter_mut(filter: MeanKernel, image: &mut GrayImage) {
     let mut new_image: GrayImage = ImageBuffer::new(width, height);
 
     horizontal_blur(radius, image, &mut new_image, width, height);
-    fast_transpose(&new_image, &mut *image, width as usize, height as usize);
+    transpose(&new_image, &mut *image, width as usize, height as usize);
     horizontal_blur(radius, image, &mut new_image, height, width);
-    fast_transpose(&new_image, &mut *image, height as usize, width as usize);
+    transpose(&new_image, &mut *image, height as usize, width as usize);
 } 
 
 fn horizontal_blur(radius: i32, image: &[u8], blur_image: &mut [u8], width: u32, height: u32) {

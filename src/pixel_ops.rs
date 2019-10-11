@@ -3,11 +3,12 @@
 use image::{Pixel, RgbaImage, GrayImage};
 
 
-pub fn invert_mut(image: &mut GrayImage) {
+pub fn invert_mut(image: &mut RgbaImage) {
     let max = std::u8::MAX;
-    let (width, height) = image.dimensions();
     for pixel in image.pixels_mut() {
         pixel[0] = max - pixel[0]; 
+        pixel[1] = max - pixel[1]; 
+        pixel[2] = max - pixel[2]; 
     }
 }
 
