@@ -1,25 +1,31 @@
-use image_processing::blur::*;
-use image::ConvertBuffer;
-use image_processing::matrix_ops::*;
-use image::GrayImage;
-use image::ImageBuffer;
-
 #[cfg(feature = "display-window")]
 fn main() {
     use image_processing::window::*;
+    use image_processing::blur::*;
+    use image::ConvertBuffer;
+    use image_processing::matrix_ops::*;
+    use image::GrayImage;
+    use image::ImageBuffer;
+    use image::RgbaImage;
+
     let mut image = image::open("./images/england-hampton-court-palace.jpg")
         .expect("image not found")
-        .to_luma();
+        .to_rgba();
+        // .to_luma();
 
     let (width, height) = (800, 800);
 
     let mut box_image = image.clone();
+    let raw_image: Vec<u8> = vec![100, 125, 150, 255, 25, 50, 75, 255, 200, 225, 250, 255, 100, 125, 150, 255, 25, 50, 75, 255, 200, 225, 250, 255];
+    let mut image: RgbaImage = ImageBuffer::from_vec(3, 2, raw_image).unwrap();
 
     let size = 11;
 
+    box_filter_mut(MeanKernel::new(size), &mut image);
     box_filter_mut(MeanKernel::new(size), &mut box_image);
 
-    display_image("box", &box_image.convert(), width, height);
+    display_image("box", &box_image, width, height);
+    // display_image("box", &image, width, height);
 }
 
 #[cfg(not(feature = "display-window"))]

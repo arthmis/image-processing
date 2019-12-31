@@ -3,11 +3,12 @@
 use image::{Pixel, RgbaImage, GrayImage};
 
 
-pub fn invert_mut(image: &mut GrayImage) {
+pub fn invert_mut(image: &mut RgbaImage) {
     let max = std::u8::MAX;
-    let (width, height) = image.dimensions();
     for pixel in image.pixels_mut() {
         pixel[0] = max - pixel[0]; 
+        pixel[1] = max - pixel[1]; 
+        pixel[2] = max - pixel[2]; 
     }
 }
 
@@ -63,7 +64,7 @@ pub fn logarithm_mut(image: &mut GrayImage) {
 }
 
 // https://theailearner.com/2019/01/26/power-law-gamma-transformations/
-pub fn power_law_transform_mut(image: &mut GrayImage, gamma: f32) {
+pub fn power_law_transform_mut(image: &mut RgbaImage, gamma: f32) {
     let lut = {
         let mut lut = [0_u8; 256];
         let max = 255.0;
@@ -74,5 +75,7 @@ pub fn power_law_transform_mut(image: &mut GrayImage, gamma: f32) {
     };
     for pixel in image.pixels_mut() {
         pixel[0] = lut[pixel[0] as usize];
+        pixel[1] = lut[pixel[1] as usize];
+        pixel[2] = lut[pixel[2] as usize];
     }
 }
