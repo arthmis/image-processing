@@ -22,7 +22,7 @@ fn main() {
     let size = 11;
 
     box_filter_mut(MeanKernel::new(size), &mut image);
-    box_filter_mut(MeanKernel::new(size), &mut box_image);
+    box_filter_mut_alternate(MeanKernel::new(size), &mut box_image);
 
     display_image("box", &box_image, width, height);
     // display_image("box", &image, width, height);

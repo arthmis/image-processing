@@ -8,6 +8,8 @@ use std::f32::consts::{E, PI};
 pub struct MeanKernel(u32);
 
 
+const STRIDE: usize = 4;
+
 impl MeanKernel {
     pub fn new(size: u32) -> Self {
         assert!(size % 2 != 0, "Size needs to be odd. Size was: {}", size);
@@ -210,8 +212,8 @@ pub fn gaussian_filter_mut(filter: &GaussianKernel, image: &mut GrayImage) {
 //     } 
 // }
 
-pub fn box_filter_mut(filter: MeanKernel, image: &mut RgbaImage) {
-    use crate::matrix_ops::*;
+pub fn box_filter_mut_alternate(filter: MeanKernel, image: &mut RgbaImage) {
+    use crate::matrix_ops::transpose;
 
     let (width, height) = image.dimensions();
 
@@ -231,6 +233,25 @@ pub fn box_filter_mut(filter: MeanKernel, image: &mut RgbaImage) {
     horizontal_blur(radius, &vertical_image, &mut vertical_image_blur, height, width);
     transpose(&vertical_image_blur, image);
 } 
+pub fn box_filter_mut(filter: MeanKernel, image: &mut RgbaImage) {
+    use crate::matrix_ops::transpose_generic;
+
+    let (width, height) = image.dimensions();
+
+    // want the truncated value of this division, hence not using float
+    let radius: i32 = filter.size() as i32 / 2;
+
+    let mut new_image: RgbaImage = ImageBuffer::new(width, height);
+
+    // blur pixels row wise
+    horizontal_blur(radius, image, &mut new_image, width, height);
+    transpose_generic(&new_image, image, width as usize, height as usize, STRIDE);
+
+    // blur pixels column wise
+    horizontal_blur(radius, &image, &mut new_image, height, width);
+    transpose_generic(&new_image, image, height as usize, width as usize, STRIDE);
+
+}
 const CHANNEL_COUNT: i32 = 4;
 fn horizontal_blur(radius: i32, image: &[u8], blur_image: &mut [u8], width: u32, height: u32) {
     let scale = 1.0 / (2.0 * radius as f32 + 1.0);
@@ -244,7 +265,7 @@ fn horizontal_blur(radius: i32, image: &[u8], blur_image: &mut [u8], width: u32,
             let mut sum_blue = 0.0_f32;
 
             let begin = 0 - radius;
-            let end = (0 + radius);
+            let end = 0 + radius;
             for i in begin..=end {
                 if i < 0 {
                     // unsafe {
