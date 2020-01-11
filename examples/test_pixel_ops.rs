@@ -1,7 +1,7 @@
-use image_processing::pixel_ops::*;
 use image::ConvertBuffer;
 use image::GrayImage;
 use image::ImageBuffer;
+use image_processing::pixel_ops::*;
 
 #[cfg(feature = "display-window")]
 fn main() {

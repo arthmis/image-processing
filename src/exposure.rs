@@ -44,20 +44,21 @@ pub fn rgb_to_srgb(image: &mut RgbaImage) {
     }
 }
 pub fn exposure_compensation(image: &RgbaImage, compensation: f32) -> RgbaImage {
+    use crate::pixel_ops::power_law_transform_mut;
+
     let mut new_image = image.clone();
+    let gamma: f32 = 4.0;
+    power_law_transform_mut(&mut new_image, gamma);
+
     let lut = {
         let mut lut: [u8; 256] = [0; 256];
-        let constant: f32 = 1.0 / (1.0 + 1.0_f32).log(2.0);
+
         for (i, val) in lut.iter_mut().enumerate() {
             let new_value = i;
             let mut norm_val = new_value as f32 / 255.0;
-            // let mut norm_val = new_value as f32;
-            // norm_val *= 2.0_f32.powf(comp).ln();
-            norm_val *= constant * (1.0 + 2.0_f32.powf(compensation)).log(2.0);
-            // norm_val *= 2.0_f32.powf(compensation);
+            norm_val *= 2.0_f32.powf(compensation);
             norm_val = clamp(norm_val, 0.0, 1.0);
             *val = (norm_val * 255.0).round() as u8;
-            // *val = (norm_val).round() as u8;
         }
         lut
     };
@@ -67,5 +68,6 @@ pub fn exposure_compensation(image: &RgbaImage, compensation: f32) -> RgbaImage 
         pixel[1] = lut[pixel[1] as usize];
         pixel[2] = lut[pixel[2] as usize];
     }
+    power_law_transform_mut(&mut new_image, 1.0 / gamma);
     new_image
 }

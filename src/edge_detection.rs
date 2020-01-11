@@ -1,21 +1,17 @@
+use image::GenericImageView;
 use image::{GrayImage, ImageBuffer};
-use image::{GenericImage, GenericImageView};
-use image::Luma;
 
 use crate::clamp;
-use crate::pixel_ops::threshold_mut;
 use crate::matrix_ops::matrix_transpose;
+use crate::pixel_ops::threshold_mut;
 
-pub fn nomal_sobel_mut(image: &mut GrayImage, threshold: u8) {
-
+pub fn normal_sobel_mut(image: &mut GrayImage, threshold: u8) {
     let mut image_copy = image.clone();
     let (width, height) = image.dimensions();
-    
+
     let mut output_image: GrayImage = ImageBuffer::new(width, height);
     sobel_y_inner(image, &mut output_image);
     sobel_x_inner(&mut image_copy, &mut output_image);
-
-    let (width, height) = (width as i32, height as i32);
 
     for (sobel_y, sobel_x) in image.pixels_mut().zip(image_copy.pixels()) {
         // this is an estimation of the formula for calculating
@@ -27,7 +23,7 @@ pub fn nomal_sobel_mut(image: &mut GrayImage, threshold: u8) {
 pub fn sobel_mut(image: &mut GrayImage, threshold: u8) {
     let mut image_copy = image.clone();
     let (width, height) = image.dimensions();
-    
+
     let mut output_image: GrayImage = ImageBuffer::new(width, height);
 
     let kernel_one: [i32; 3] = [1, 0, -1];
@@ -45,13 +41,23 @@ pub fn sobel_mut(image: &mut GrayImage, threshold: u8) {
     matrix_transpose(&output_image, image, height as usize, width as usize);
 
     // sobel vertical edge detection
-    sobel_vertical_pass(kernel_two, &image_copy, &mut output_image, width , height);
+    sobel_vertical_pass(kernel_two, &image_copy, &mut output_image, width, height);
 
-    matrix_transpose(&output_image, &mut image_copy, width as usize, height as usize);
+    matrix_transpose(
+        &output_image,
+        &mut image_copy,
+        width as usize,
+        height as usize,
+    );
 
     sobel_horizontal_pass(kernel_one, &image_copy, &mut output_image, height, width);
-    
-    matrix_transpose(&output_image, &mut image_copy, height as usize, width as usize);
+
+    matrix_transpose(
+        &output_image,
+        &mut image_copy,
+        height as usize,
+        width as usize,
+    );
 
     for (sobel_y, sobel_x) in image.pixels_mut().zip(image_copy.pixels()) {
         // this is an estimation of the formula for calculating
@@ -61,20 +67,25 @@ pub fn sobel_mut(image: &mut GrayImage, threshold: u8) {
     threshold_mut(image, threshold);
 }
 
-fn sobel_horizontal_pass(kernel: [i32; 3], image: &[u8], output_image: &mut[u8], width: i32, height: i32) {
-
-     assert!(
-        (width * height) as usize == image.len(), 
+fn sobel_horizontal_pass(
+    kernel: [i32; 3],
+    image: &[u8],
+    output_image: &mut [u8],
+    width: i32,
+    height: i32,
+) {
+    assert!(
+        (width * height) as usize == image.len(),
         "width * height not equal image.len(): width: {}, height: {}, width * height: {}, image length: {}", 
         width,
         height,
-        width * height, 
+        width * height,
         image.len()
     );
     assert!(
         image.len() == output_image.len(),
-        "image length: {}, output_image length: {}", 
-        image.len(), 
+        "image length: {}, output_image length: {}",
+        image.len(),
         output_image.len()
     );
 
@@ -101,20 +112,25 @@ fn sobel_horizontal_pass(kernel: [i32; 3], image: &[u8], output_image: &mut[u8],
         }
     }
 }
-fn sobel_vertical_pass(kernel: [i32; 3], image: &[u8], output_image: &mut [u8], width: i32, height: i32) {
-
-     assert!(
-        (width * height) as usize == image.len(), 
+fn sobel_vertical_pass(
+    kernel: [i32; 3],
+    image: &[u8],
+    output_image: &mut [u8],
+    width: i32,
+    height: i32,
+) {
+    assert!(
+        (width * height) as usize == image.len(),
         "width * height not equal image.len(): width: {}, height: {}, width * height: {}, image length: {}", 
         width,
         height,
-        width * height, 
+        width * height,
         image.len()
     );
     assert!(
         image.len() == output_image.len(),
-        "image length: {}, output_image length: {}", 
-        image.len(), 
+        "image length: {}, output_image length: {}",
+        image.len(),
         output_image.len()
     );
 
@@ -135,7 +151,7 @@ fn sobel_vertical_pass(kernel: [i32; 3], image: &[u8], output_image: &mut [u8], 
                 }
             }
 
-            output_image[(y * width + x) as usize] = clamp(sum, 0 , 255) as u8;
+            output_image[(y * width + x) as usize] = clamp(sum, 0, 255) as u8;
 
             sum = 0;
         }
@@ -145,8 +161,8 @@ fn sobel_vertical_pass(kernel: [i32; 3], image: &[u8], output_image: &mut [u8], 
 fn sobel_x_inner(image: &mut GrayImage, kernel_image: &mut GrayImage) {
     // assert!(
     //     image.len() == kernel_image.len(),
-    //     "image length: {}, output_image length: {}", 
-    //     image.len(), 
+    //     "image length: {}, output_image length: {}",
+    //     image.len(),
     //     kernel_image.len()
     // );
 
@@ -154,7 +170,6 @@ fn sobel_x_inner(image: &mut GrayImage, kernel_image: &mut GrayImage) {
     let kernel_two = [1, 2, 1];
 
     let (width, height) = image.dimensions();
-
 
     let mut sum: i32 = 0;
     let radius = 1;
@@ -185,7 +200,7 @@ fn sobel_x_inner(image: &mut GrayImage, kernel_image: &mut GrayImage) {
 
     // vertical kernel
     sum = 0;
-    for y in 0..height{
+    for y in 0..height {
         for x in 0..width {
             let begin = y as i32 - radius;
             let end = y as i32 + radius;
@@ -214,8 +229,8 @@ fn sobel_x_inner(image: &mut GrayImage, kernel_image: &mut GrayImage) {
 fn sobel_y_inner(image: &mut GrayImage, kernel_image: &mut GrayImage) {
     // assert!(
     //     image.len() == kernel_image.len(),
-    //     "image length: {}, output_image length: {}", 
-    //     image.len(), 
+    //     "image length: {}, output_image length: {}",
+    //     image.len(),
     //     kernel_image.len()
     // );
 
@@ -227,7 +242,6 @@ fn sobel_y_inner(image: &mut GrayImage, kernel_image: &mut GrayImage) {
     let mut sum: i32 = 0;
 
     let radius = 1;
-
 
     // horizontal convolution
     for y in 0..height {
@@ -256,8 +270,8 @@ fn sobel_y_inner(image: &mut GrayImage, kernel_image: &mut GrayImage) {
     }
 
     sum = 0;
-    // vertical convolution 
-    for y in 0..height{
+    // vertical convolution
+    for y in 0..height {
         for x in 0..width {
             let begin = y as i32 - radius;
             let end = y as i32 + radius;
@@ -323,7 +337,7 @@ pub fn sobel_x(image: &mut GrayImage) {
 
     // vertical kernel
     sum = 0;
-    for y in 0..height{
+    for y in 0..height {
         for x in 0..width {
             let begin = y as i32 - radius;
             let end = y as i32 + radius;
@@ -386,8 +400,8 @@ pub fn sobel_y(image: &mut GrayImage) {
     }
 
     sum = 0;
-    // vertical convolution 
-    for y in 0..height{
+    // vertical convolution
+    for y in 0..height {
         for x in 0..width {
             let begin = y as i32 - radius;
             let end = y as i32 + radius;

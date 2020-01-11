@@ -1,12 +1,12 @@
-
 #[cfg(feature = "display-window")]
 fn main() {
-    use image_processing::window::*;
-    use image_processing::edge_detection::*;
     use image::ConvertBuffer;
+    use image_processing::edge_detection::*;
     use image_processing::pixel_ops::threshold_mut;
+    use image_processing::window::*;
 
-    let mut image = image::open("./images/england-hampton-court-palace.jpg")
+    // let mut image = image::open("./images/england-hampton-court-palace.jpg")
+    let mut image = image::open("../../Desktop/Portfolio_Images/flatiron-building-side.jpg")
         .expect("image not found")
         .to_luma();
 
@@ -18,26 +18,24 @@ fn main() {
     // sobel_x(&mut x_image);
     // sobel_y(&mut y_image);
 
-    let threshold = 120;
+    let threshold = 100;
     sobel_mut(&mut image, threshold);
-    slower_sobel_mut(&mut image_clone, threshold);
     // threshold_mut(&mut x_image, threshold);
     // threshold_mut(&mut y_image, threshold);
 
     // display_image("sobel horizontal", &image.convert(), width, height);
-    display_multiple_images(
-        &["sobel regular", "sobel fast"], 
-        &[&image.convert(), &image_clone.convert()], 
-        width, 
-        height
-    );
-    // display_multiple_images( 
-    //     &["sobel", "sobel x ", "sobel y"], 
-    //     &[&image.convert(), &x_image.convert(), &y_image.convert()], 
-    //     width, 
+    // display_multiple_images(
+    //     &["sobel regular", "sobel fast"],
+    //     &[&image.convert(), &image_clone.convert()],
+    //     width,
     //     height
     // );
-
+    // display_multiple_images(
+    //     &["sobel", "sobel x ", "sobel y"],
+    //     &[&image.convert(), &x_image.convert(), &y_image.convert()],
+    //     width,
+    //     height
+    // );
 }
 
 #[cfg(not(feature = "display-window"))]

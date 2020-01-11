@@ -4,12 +4,12 @@ fn main() {
     use image::GrayImage;
     use image::ImageBuffer;
     use image::RgbaImage;
+    use image_processing::clamp;
     use image_processing::conversion::*;
     use image_processing::exposure::*;
     use image_processing::matrix_ops::*;
     use image_processing::pixel_ops::power_law_transform_mut;
     use image_processing::window::*;
-    use image_processing::clamp;
 
     // let mut image = image::open("./images/england-hampton-court-palace.jpg")
     // let mut image = image::open("./images/empire-state-building.jpg")
@@ -20,15 +20,10 @@ fn main() {
     let (width, height) = (800, 800);
 
     let compensation = 1.0;
-    let mut hsl = Hsl::from(&image);
-    for value in hsl.luminance.iter_mut() {
-        let new_value = *value * 2.0_f32.powf(compensation);
-        *value = clamp(new_value, 0.0, 1.0);
-    }
-    let rgba = RgbaImage::from(&hsl);
+
     // power_law_transform_mut(&mut image, 2.2);
     // srgb_to_rgb(&mut image);
-    // let mut comp_image = exposure_compensation(&image, 1.0);
+    let mut comp_image = exposure_compensation(&image, 2.0);
     // rgb_to_srgb(&mut comp_image);
     // power_law_transform_mut(&mut comp_image, 1.0/2.2);
 
@@ -36,7 +31,7 @@ fn main() {
     // display_image("exposure_compensation", &comp_image, width, height);
     display_multiple_images(
         &["regular", "converted"],
-        &[&image, &rgba],
+        &[&image, &comp_image],
         width,
         height,
     );

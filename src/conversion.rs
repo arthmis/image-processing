@@ -105,9 +105,9 @@ fn hsl_to_rgb(pixel: (f32, f32, f32)) -> (u8, u8, u8) {
 }
 
 pub fn rgb_to_hsl(pixel: (u8, u8, u8)) -> (f32, f32, f32) {
-     let red = pixel.0 as f32 / 255.0;
-     let green = pixel.1 as f32 / 255.0;
-     let blue = pixel.2 as f32 / 255.0; 
+    let red = pixel.0 as f32 / 255.0;
+    let green = pixel.1 as f32 / 255.0;
+    let blue = pixel.2 as f32 / 255.0;
 
     let max = red.max(green).max(blue);
     let min = red.min(green).min(blue);
@@ -120,7 +120,7 @@ pub fn rgb_to_hsl(pixel: (u8, u8, u8)) -> (f32, f32, f32) {
             0.0
         } else if max == red {
             60.0 * ((green - blue) / delta)
-            // 60.0 * (((green - blue) / delta) % 6.0)
+        // 60.0 * (((green - blue) / delta) % 6.0)
         } else if max == green {
             60.0 * (2.0 + (blue - red) / delta)
         } else if max == blue {
@@ -145,7 +145,7 @@ pub fn rgb_to_hsl(pixel: (u8, u8, u8)) -> (f32, f32, f32) {
             (max - min) / (1.0 - (max + min - 1.0).abs())
         }
     };
-    luminance = (max + min ) / 2.0;
+    luminance = (max + min) / 2.0;
     // dbg!(hue);
     // dbg!(saturation);
     // dbg!(luminance);

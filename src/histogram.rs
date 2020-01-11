@@ -26,9 +26,7 @@ pub struct LumaHistogram {
 }
 impl LumaHistogram {
     pub fn from_rgba_image(image: &RgbaImage) -> Self {
-        let mut histogram = LumaHistogram {
-            values: [0; 256],
-        };
+        let mut histogram = LumaHistogram { values: [0; 256] };
         for pixel in image.pixels() {
             let red = pixel[0] as f32 * 0.299;
             let green = pixel[1] as f32 * 0.587;
@@ -37,7 +35,6 @@ impl LumaHistogram {
             histogram.values[gray_value as usize] += 1;
         }
         histogram
-
     }
 }
 
@@ -46,12 +43,8 @@ pub fn convert_to_image(
     image_height: u32,
     gray_hist: &LumaHistogram,
 ) -> RgbaImage {
-    let hist_color = {
-        Rgba([90, 90, 90, 255])
-    };
-    let max_hist_val: u32 = {
-        *(gray_hist.values.iter().max().unwrap())
-    };
+    let hist_color = { Rgba([90, 90, 90, 255]) };
+    let max_hist_val: u32 = { *(gray_hist.values.iter().max().unwrap()) };
     dbg!(max_hist_val);
 
     let channel_count = 4;
