@@ -14,9 +14,7 @@ pub fn normal_sobel_mut(image: &mut GrayImage, threshold: u8) {
     sobel_x_inner(&mut image_copy, &mut output_image);
 
     for (sobel_y, sobel_x) in image.pixels_mut().zip(image_copy.pixels()) {
-        // this is an estimation of the formula for calculating
-        // edges so it isn't perfect but it is faster and close enough in output
-        sobel_y[0] = (sobel_x[0]) + (sobel_y[0]);
+        sobel_y[0] = ((sobel_x[0] as f32).powi(2) + (sobel_y[0] as f32).powi(2)).sqrt() as u8;
     }
     threshold_mut(image, threshold);
 }
