@@ -61,33 +61,20 @@ pub fn transpose_generic<T: Copy>(
         }
     }
 }
-pub fn transpose_rgba<T: Copy>(image: &[T], out_image: &mut [T], width: usize, height: usize) {
-    let stride = 4;
+
+pub fn transpose_rgba(image: &RgbaImage, out_image: &mut RgbaImage) {
+    let (width, height) = image.dimensions();
     assert!(
-        width * height * stride == image.len(),
-        "width * height not equal image.len(): {} {}",
+        width * height == out_image.width() * out_image.height(),
+        "image size not same as out image size: {} {}",
         width * height,
-        image.len(),
-    );
-    assert!(
-        image.len() == out_image.len(),
-        "buf length: {}, out_buf length: {}",
-        image.len(),
-        out_image.len(),
+        out_image.width() * out_image.height(),
     );
 
     for y in 0..height {
         for x in 0..width {
-            let image_min_index = (y * width + x) * stride;
-            let trans_min_index = (x * height + y) * stride;
-
-            let image_pixel = &image[image_min_index..(image_min_index + stride)];
-            let transpose_pixel = &mut out_image[trans_min_index..(trans_min_index + stride)];
-
-            transpose_pixel[0] = image_pixel[0];
-            transpose_pixel[1] = image_pixel[1];
-            transpose_pixel[2] = image_pixel[2];
-            transpose_pixel[3] = image_pixel[3];
+            let image_pixel = image[(x, y)];
+            out_image[(y, x)] = image_pixel;
         }
     }
 }
