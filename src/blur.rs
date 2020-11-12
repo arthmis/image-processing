@@ -1,5 +1,4 @@
-// use image::RgbaImage;
-use image::GenericImageView;
+use image::{GenericImageView, Rgba};
 use image::{GrayImage, ImageBuffer, RgbaImage};
 
 use std::f32::consts::{E, PI};
@@ -165,7 +164,6 @@ pub fn box_filter_mut(filter: MeanKernel, image: RgbaImage) -> RgbaImage {
     // use crate::matrix_ops::transpose_generic;
     use crate::matrix_ops::transpose_rgba;
     use image::Pixel;
-    use image::Rgba;
 
     let (width, height) = image.dimensions();
 
@@ -178,24 +176,25 @@ pub fn box_filter_mut(filter: MeanKernel, image: RgbaImage) -> RgbaImage {
     // let mut new_image: RgbaImage = ImageBuffer::new(width, height);
 
     // blur pixels row wise
-    horizontal_blur(radius, &image, &mut new_image, width, height);
+    horizontal_blur(radius, &image, &mut new_image);
     let mut image: RgbaImage = ImageBuffer::from_vec(height, width, image.into_raw()).unwrap();
     transpose_rgba(&new_image, &mut image);
 
     // blur pixels column wise
     let mut new_image: RgbaImage =
         ImageBuffer::from_vec(height, width, new_image.into_raw()).unwrap();
-    horizontal_blur(radius, &image, &mut new_image, height, width);
+    horizontal_blur(radius, &image, &mut new_image);
     // transpose_generic(&new_image, image, height as usize, width as usize, STRIDE);
     let mut image: RgbaImage = ImageBuffer::from_vec(width, height, image.into_raw()).unwrap();
     transpose_rgba(&new_image, &mut image);
 
     image
 }
-const CHANNEL_COUNT: i32 = 4;
-fn horizontal_blur(radius: i32, image: &[u8], blur_image: &mut [u8], width: u32, height: u32) {
-    assert!((width * height * CHANNEL_COUNT as u32) as usize == image.len());
-    assert!(image.len() == blur_image.len());
+fn horizontal_blur(radius: i32, image: &RgbaImage, blur_image: &mut RgbaImage) {
+    assert!(image.width() == blur_image.width());
+    assert!(image.height() == blur_image.height());
+
+    let (width, height) = image.dimensions();
 
     let scale = 1.0 / (2.0 * radius as f32 + 1.0);
 
@@ -203,85 +202,54 @@ fn horizontal_blur(radius: i32, image: &[u8], blur_image: &mut [u8], width: u32,
 
     for y in 0..height {
         let (mut sum_red, mut sum_green, mut sum_blue) = {
-            // let mut sum: f32 = 0.0;
             let mut sum_red = 0.0_f32;
             let mut sum_green = 0.0_f32;
             let mut sum_blue = 0.0_f32;
 
             let begin = 0 - radius;
-            let end = 0 + radius;
+            let end = radius;
             for i in begin..=end {
                 if i < 0 {
-                    let pixel_index = (y * width * CHANNEL_COUNT) as usize;
-
-                    sum_red += image[pixel_index] as f32;
-
-                    sum_green += image[pixel_index + 1] as f32;
-
-                    sum_blue += image[pixel_index + 2] as f32;
+                    let pixel = image[(0, y as u32)];
+                    sum_red += pixel[0] as f32;
+                    sum_green += pixel[1] as f32;
+                    sum_blue += pixel[2] as f32;
                 } else if i >= width as i32 {
-                    let pixel_index =
-                        (y * width * CHANNEL_COUNT + (width - 1) * CHANNEL_COUNT) as usize;
-                    sum_red += image[pixel_index] as f32;
-                    sum_green += image[pixel_index + 1] as f32;
-                    sum_blue += image[pixel_index + 2] as f32;
+                    let pixel = image[(width as u32 - 1, y as u32)];
+                    sum_red += pixel[0] as f32;
+                    sum_green += pixel[1] as f32;
+                    sum_blue += pixel[2] as f32;
                 } else {
-                    let pixel_index = (y * width * CHANNEL_COUNT + i * CHANNEL_COUNT) as usize;
-                    sum_red += image[pixel_index] as f32;
-                    sum_green += image[pixel_index + 1] as f32;
-                    sum_blue += image[pixel_index + 2] as f32;
+                    let pixel = image[(i as u32, y as u32)];
+                    sum_red += pixel[0] as f32;
+                    sum_green += pixel[1] as f32;
+                    sum_blue += pixel[2] as f32;
                 }
             }
             (sum_red, sum_green, sum_blue)
         };
 
-        let begin_index = (y * width * CHANNEL_COUNT) as usize;
-        let begin_pixel_red = image[begin_index] as f32;
-        let begin_pixel_green = image[begin_index + 1] as f32;
-        let begin_pixel_blue = image[begin_index + 2] as f32;
-
-        let end_index = (y * width * CHANNEL_COUNT + (width - 1) * CHANNEL_COUNT) as usize;
-        let end_pixel_red = image[end_index] as f32;
-        let end_pixel_green = image[end_index + 1] as f32;
-        let end_pixel_blue = image[end_index + 2] as f32;
-
         for x in 0..width {
-            let current_pixel = (y * width * CHANNEL_COUNT + x * CHANNEL_COUNT) as usize;
+            let pixel = blur_image.get_pixel_mut(x as u32, y as u32);
+            pixel[0] = (sum_red * scale).round() as u8;
+            pixel[1] = (sum_green * scale).round() as u8;
+            pixel[2] = (sum_blue * scale).round() as u8;
 
-            blur_image[current_pixel] = (sum_red * scale).round() as u8;
-            blur_image[current_pixel + 1] = (sum_green * scale).round() as u8;
-            blur_image[current_pixel + 2] = (sum_blue * scale).round() as u8;
-
-            if x + radius + 1 >= width as i32 && x - radius < 0 {
-                sum_red += end_pixel_red - begin_pixel_red;
-                sum_green += end_pixel_green - begin_pixel_green;
-                sum_blue += end_pixel_blue - begin_pixel_blue;
-            } else if x + radius + 1 >= width as i32 {
-                let pixel_index =
-                    (y * width * CHANNEL_COUNT + (x - radius) * CHANNEL_COUNT) as usize;
-
-                sum_red += end_pixel_red - image[pixel_index] as f32;
-                sum_green += end_pixel_green - image[pixel_index + 1] as f32;
-                sum_blue += end_pixel_blue - image[pixel_index + 2] as f32;
-            } else if x - radius < 0 {
-                let pixel_index =
-                    (y * width * CHANNEL_COUNT + (x + radius + 1) * CHANNEL_COUNT) as usize;
-
-                sum_red += image[pixel_index] as f32 - begin_pixel_red;
-                sum_green += image[pixel_index + 1] as f32 - begin_pixel_green;
-                sum_blue += image[pixel_index + 2] as f32 - begin_pixel_blue;
+            let begin_pixel = if x - radius < 0 {
+                image[(0, y as u32)]
             } else {
-                let last_pixel_index =
-                    (y * width * CHANNEL_COUNT + (x + radius + 1) * CHANNEL_COUNT) as usize;
-                let first_pixel_index =
-                    (y * width * CHANNEL_COUNT + (x - radius) * CHANNEL_COUNT) as usize;
+                image[((x - radius) as u32, y as u32)]
+            };
 
-                sum_red += image[last_pixel_index] as f32 - image[first_pixel_index] as f32;
-                sum_green +=
-                    image[last_pixel_index + 1] as f32 - image[first_pixel_index + 1] as f32;
-                sum_blue +=
-                    image[last_pixel_index + 2] as f32 - image[first_pixel_index + 2] as f32;
-            }
+            let end_pixel = if x + radius + 1 >= width {
+                image[(width as u32 - 1, y as u32)]
+            } else {
+                image[((x + radius + 1) as u32, y as u32)]
+            };
+
+            sum_red += end_pixel[0] as f32 - begin_pixel[0] as f32;
+            sum_green += end_pixel[1] as f32 - begin_pixel[1] as f32;
+            sum_blue += end_pixel[2] as f32 - begin_pixel[2] as f32;
         }
     }
 }

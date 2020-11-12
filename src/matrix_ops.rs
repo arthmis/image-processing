@@ -73,8 +73,7 @@ pub fn transpose_rgba(image: &RgbaImage, out_image: &mut RgbaImage) {
 
     for y in 0..height {
         for x in 0..width {
-            let image_pixel = image[(x, y)];
-            out_image[(y, x)] = image_pixel;
+            out_image[(y, x)] = image[(x, y)];
         }
     }
 }

@@ -253,5 +253,5 @@ fn resize_to_fit(image: &RgbaImage, window_width: u32, window_height: u32) -> Rg
     let height = (scale * image.height() as f32) as u32;
     let width = (scale * image.width() as f32) as u32;
 
-    resize(image, width, height, image::FilterType::Triangle)
+    resize(image, width, height, image::imageops::FilterType::Triangle)
 }
