@@ -156,11 +156,24 @@ pub fn gaussian_filter_mut(filter: &GaussianKernel, image: &mut GrayImage) {
 //     transpose(&vertical_image_blur, image);
 // }
 
+trait SwapDimension {
+    fn swap_dimensions(&mut self);
+}
+
+impl SwapDimension for RgbaImage {
+    fn swap_dimensions(&mut self) {
+        let (width, height) = self.dimensions();
+        let temp = core::mem::replace(self, ImageBuffer::new(0, 0));
+        let temp: RgbaImage = ImageBuffer::from_raw(height, width, temp.into_raw()).unwrap();
+        *self = temp;
+    }
+}
+
 // got the algorithm for this box blur from here
 // https://fgiesen.wordpress.com/2012/07/30/fast-blurs-1/
 // http://elynxsdk.free.fr/ext-docs/Blur/Fast_box_blur.pdf
 // this filter still isn't complete because it can't take even sized filters
-pub fn box_filter_mut(filter: MeanKernel, image: RgbaImage) -> RgbaImage {
+pub fn box_filter_mut(filter: MeanKernel, mut image: &mut RgbaImage) {
     // use crate::matrix_ops::transpose_generic;
     use crate::matrix_ops::transpose_rgba;
     use image::Pixel;
@@ -177,19 +190,22 @@ pub fn box_filter_mut(filter: MeanKernel, image: RgbaImage) -> RgbaImage {
 
     // blur pixels row wise
     horizontal_blur(radius, &image, &mut new_image);
-    let mut image: RgbaImage = ImageBuffer::from_vec(height, width, image.into_raw()).unwrap();
+
+    // swaps dimensions to allow transposing new_image into image
+    image.swap_dimensions();
     transpose_rgba(&new_image, &mut image);
+
+    // swaps dimensions to allow image to blur vertically and write to new_image
+    new_image.swap_dimensions();
 
     // blur pixels column wise
-    let mut new_image: RgbaImage =
-        ImageBuffer::from_vec(height, width, new_image.into_raw()).unwrap();
     horizontal_blur(radius, &image, &mut new_image);
-    // transpose_generic(&new_image, image, height as usize, width as usize, STRIDE);
-    let mut image: RgbaImage = ImageBuffer::from_vec(width, height, image.into_raw()).unwrap();
-    transpose_rgba(&new_image, &mut image);
 
-    image
+    // swaps image back to its original dimensions
+    image.swap_dimensions();
+    transpose_rgba(&new_image, &mut image);
 }
+
 fn horizontal_blur(radius: i32, image: &RgbaImage, blur_image: &mut RgbaImage) {
     assert!(image.width() == blur_image.width());
     assert!(image.height() == blur_image.height());

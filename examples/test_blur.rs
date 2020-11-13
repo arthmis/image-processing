@@ -14,9 +14,9 @@ fn main() {
     let (width, height) = (800, 800);
 
     let mut box_image = image.clone();
-    let size = 15;
+    let size = 81;
 
-    box_image = box_filter_mut(MeanKernel::new(size), box_image);
+    box_filter_mut(MeanKernel::new(size), &mut box_image);
 
     display_image("box", &box_image, width, height);
 }
