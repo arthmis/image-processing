@@ -1,8 +1,24 @@
+use crate::matrix_ops::transpose_rgba;
+use image::Pixel;
 use image::{GenericImageView, Rgba};
 use image::{GrayImage, ImageBuffer, RgbaImage};
 
 use std::f32::consts::{E, PI};
 // otherwise known as a box filter
+
+#[derive(Clone, Copy)]
+pub struct BoxKernel(u32);
+
+impl BoxKernel {
+    pub fn new(size: u32) -> Self {
+        assert!(size % 2 != 0, "Size needs to be odd. Size was: {}", size);
+        BoxKernel(size)
+    }
+
+    pub fn size(&self) -> u32 {
+        self.0
+    }
+}
 
 #[derive(Clone)]
 pub struct GaussianKernel {
@@ -49,8 +65,111 @@ impl GaussianKernel {
         }
     }
 }
+// this assume the kernel is smaller than the image, so it isn't absolutely
+// robust for all size kernels and image sizes
+fn extended_box_filter_mut(radius: f32, image: &RgbaImage, blur_image: &mut RgbaImage) {
+    assert!(image.width() == blur_image.width());
+    assert!(image.height() == blur_image.height());
 
-pub fn gaussian_filter_mut(filter: &GaussianKernel, image: &mut GrayImage) {
+    let scale = 1.0 / (2.0 * radius + 1.0);
+    let (radius, alpha) = {
+        let m = radius as i32;
+        let alpha = radius - m as f32;
+        (m, alpha)
+    };
+    // dbg!(radius);
+    // dbg!(alpha);
+
+    let (width, height) = image.dimensions();
+
+    let (width, height) = (width as i32, height as i32);
+
+    let lerp = |t, a, b| a + t * (b - a);
+
+    for y in 0..height {
+        let (mut sum_red, mut sum_green, mut sum_blue) = {
+            let mut sum_red = 0.0_f32;
+            let mut sum_green = 0.0_f32;
+            let mut sum_blue = 0.0_f32;
+
+            let begin = 0 - radius;
+            let end = radius;
+            for i in begin..=end {
+                if i < 0 {
+                    let pixel = image[(0, y as u32)];
+                    sum_red += pixel[0] as f32;
+                    sum_green += pixel[1] as f32;
+                    sum_blue += pixel[2] as f32;
+                } else if i >= width as i32 {
+                    let pixel = image[(width as u32 - 1, y as u32)];
+                    sum_red += pixel[0] as f32;
+                    sum_green += pixel[1] as f32;
+                    sum_blue += pixel[2] as f32;
+                } else {
+                    let pixel = image[(i as u32, y as u32)];
+                    sum_red += pixel[0] as f32;
+                    sum_green += pixel[1] as f32;
+                    sum_blue += pixel[2] as f32;
+                }
+            }
+
+            let begin_pixel = image[(0, y as u32)];
+
+            let end_pixel = if end + 1 >= width {
+                image[(width as u32 - 1, y as u32)]
+            } else {
+                image[(end as u32 + 1, y as u32)]
+            };
+
+            sum_red += alpha * (end_pixel[0] as f32 + begin_pixel[0] as f32);
+            sum_green += alpha * (end_pixel[1] as f32 + begin_pixel[1] as f32);
+            sum_blue += alpha * (end_pixel[2] as f32 + begin_pixel[2] as f32);
+
+            (sum_red, sum_green, sum_blue)
+        };
+
+        for x in 0..width {
+            let pixel = blur_image.get_pixel_mut(x as u32, y as u32);
+            pixel[0] = (sum_red * scale).round() as u8;
+            pixel[1] = (sum_green * scale).round() as u8;
+            pixel[2] = (sum_blue * scale).round() as u8;
+
+            let begin_pixel = if x - radius < 0 {
+                image[(0, y as u32)]
+            } else {
+                image[((x - radius) as u32, y as u32)]
+            };
+
+            let before_begin_pixel = if x - radius - 1 < 0 {
+                image[(0, y as u32)]
+            } else {
+                image[((x - radius - 1) as u32, y as u32)]
+            };
+
+            let end_pixel = if x + radius + 1 >= width {
+                image[(width as u32 - 1, y as u32)]
+            } else {
+                image[((x + radius + 1) as u32, y as u32)]
+            };
+
+            let after_end_pixel = if x + radius + 2 >= width {
+                image[(width as u32 - 1, y as u32)]
+            } else {
+                image[((x + radius + 2) as u32, y as u32)]
+            };
+
+            sum_red += lerp(alpha, end_pixel[0] as f32, after_end_pixel[0] as f32);
+            sum_red -= lerp(alpha, begin_pixel[0] as f32, before_begin_pixel[0] as f32);
+
+            sum_green += lerp(alpha, end_pixel[1] as f32, after_end_pixel[1] as f32);
+            sum_green -= lerp(alpha, begin_pixel[1] as f32, before_begin_pixel[1] as f32);
+
+            sum_blue += lerp(alpha, end_pixel[2] as f32, after_end_pixel[2] as f32);
+            sum_blue -= lerp(alpha, begin_pixel[2] as f32, before_begin_pixel[2] as f32);
+        }
+    }
+}
+pub fn gaussian_filter_mut_fast(filter: &GaussianKernel, image: &mut GrayImage) {
     let filter = filter.one_dimension_filter.as_slice();
 
     let (width, height) = image.dimensions();
@@ -114,34 +233,79 @@ pub fn gaussian_filter_mut(filter: &GaussianKernel, image: &mut GrayImage) {
         }
     }
 }
+pub fn gaussian_filter_mut(filter: &GaussianKernel, image: &mut RgbaImage) {
+    let filter = filter.one_dimension_filter.as_slice();
 
-// pub fn box_filter_mut_alternate(filter: MeanKernel, image: &mut RgbaImage) {
-//     use crate::matrix_ops::transpose;
+    let (width, height) = image.dimensions();
 
-//     let (width, height) = image.dimensions();
+    let mut horizontal_image: RgbaImage = ImageBuffer::new(width, height);
 
-//     // want the truncated value of this division, hence not using float
-//     let radius: i32 = filter.size() as i32 / 2;
+    // want the truncated value of this division, hence not using float
+    let filter_radius: i32 = filter.len() as i32 / 2;
 
-//     // let mut new_image: RgbaImage = ImageBuffer::new(width, height);
-//     let mut new_image: RgbaImage = ImageBuffer::new(width, height);
-//     let mut vertical_image: RgbaImage = ImageBuffer::new(height, width);
-//     let mut vertical_image_blur: RgbaImage = ImageBuffer::new(height, width);
+    let mut sum_red: f32 = 0.0;
+    let mut sum_green: f32 = 0.0;
+    let mut sum_blue: f32 = 0.0;
+    // blur horizontally
+    for y in 0..height {
+        for x in 0..width {
+            let begin: i32 = x as i32 - filter_radius;
+            let end: i32 = x as i32 + filter_radius;
+            for (i, filter_val) in (begin..=end).zip(filter.iter()) {
+                if i < 0 {
+                    sum_red += image.get_pixel(x, y).0[0] as f32 * filter_val;
+                    sum_green += image.get_pixel(x, y).0[1] as f32 * filter_val;
+                    sum_blue += image.get_pixel(x, y).0[2] as f32 * filter_val;
+                } else if i >= width as i32 {
+                    sum_red += image.get_pixel(width - 1, y).0[0] as f32 * filter_val;
+                    sum_green += image.get_pixel(width - 1, y).0[1] as f32 * filter_val;
+                    sum_blue += image.get_pixel(width - 1, y).0[2] as f32 * filter_val;
+                } else {
+                    sum_red += image.get_pixel(i as u32, y).0[0] as f32 * filter_val;
+                    sum_green += image.get_pixel(i as u32, y).0[1] as f32 * filter_val;
+                    sum_blue += image.get_pixel(i as u32, y).0[2] as f32 * filter_val;
+                }
+            }
+            horizontal_image.get_pixel_mut(x, y).0[0] = sum_red.round() as u8;
+            horizontal_image.get_pixel_mut(x, y).0[1] = sum_green.round() as u8;
+            horizontal_image.get_pixel_mut(x, y).0[2] = sum_blue.round() as u8;
+            sum_red = 0.0;
+            sum_green = 0.0;
+            sum_blue = 0.0;
+        }
+    }
 
-//     // blur pixels row wise
-//     horizontal_blur(radius, image, &mut new_image, width, height);
-//     transpose(&new_image, &mut vertical_image);
+    // blur vertically
+    for y in 0..height {
+        for x in 0..width {
+            // let mut sum: f32 = 0.0;
+            let begin: i32 = y as i32 - filter_radius;
+            let end: i32 = y as i32 + filter_radius;
 
-//     // blur pixels column wise
-//     horizontal_blur(
-//         radius,
-//         &vertical_image,
-//         &mut vertical_image_blur,
-//         height,
-//         width,
-//     );
-//     transpose(&vertical_image_blur, image);
-// }
+            for (i, filter_val) in (begin..=end).zip(filter.iter()) {
+                if i < 0 {
+                    sum_red += horizontal_image.get_pixel(x, y).0[0] as f32 * filter_val;
+                    sum_green += horizontal_image.get_pixel(x, y).0[1] as f32 * filter_val;
+                    sum_blue += horizontal_image.get_pixel(x, y).0[2] as f32 * filter_val;
+                } else if i >= height as i32 {
+                    sum_red += horizontal_image.get_pixel(x, height - 1).0[0] as f32 * filter_val;
+                    sum_green += horizontal_image.get_pixel(x, height - 1).0[1] as f32 * filter_val;
+                    sum_blue += horizontal_image.get_pixel(x, height - 1).0[2] as f32 * filter_val;
+                } else {
+                    sum_red += horizontal_image.get_pixel(x, i as u32).0[0] as f32 * filter_val;
+                    sum_green += horizontal_image.get_pixel(x, i as u32).0[1] as f32 * filter_val;
+                    sum_blue += horizontal_image.get_pixel(x, i as u32).0[2] as f32 * filter_val;
+                }
+            }
+            image.get_pixel_mut(x, y).0[0] = sum_red.round() as u8;
+            image.get_pixel_mut(x, y).0[1] = sum_green.round() as u8;
+            image.get_pixel_mut(x, y).0[2] = sum_blue.round() as u8;
+            sum_red = 0.0;
+            sum_green = 0.0;
+            sum_blue = 0.0;
+        }
+    }
+}
 
 trait SwapDimension {
     fn swap_dimensions(&mut self);
@@ -156,28 +320,26 @@ impl SwapDimension for RgbaImage {
     }
 }
 
+pub fn box_blur(filter: BoxKernel, image: &RgbaImage) -> RgbaImage {
+    let new_image = image.clone();
+    box_blur_mut(filter, &mut new_image.clone());
+
+    new_image
+}
+
 // got the algorithm for this box blur from here
 // https://fgiesen.wordpress.com/2012/07/30/fast-blurs-1/
 // http://elynxsdk.free.fr/ext-docs/Blur/Fast_box_blur.pdf
-// this filter still isn't complete because it can't take even sized filters
-pub fn box_filter_mut(filter: f32, mut image: &mut RgbaImage) {
-    // use crate::matrix_ops::transpose_generic;
-    use crate::matrix_ops::transpose_rgba;
-    use image::Pixel;
-
+pub fn box_blur_mut(filter: BoxKernel, mut image: &mut RgbaImage) {
     let (width, height) = image.dimensions();
 
-    // want the truncated value of this division, hence not using float
-    let radius = filter / 2.0;
+    let radius = filter.size() / 2;
 
-    // let white_pixel = [255, 255, 255, 255_u8];
     let mut new_image: RgbaImage =
         ImageBuffer::from_pixel(width, height, Rgba::from_channels(255, 255, 255, 255));
-    // let mut new_image: RgbaImage = ImageBuffer::new(width, height);
 
     // blur pixels row wise
-    horizontal_blur(radius, &image, &mut new_image);
-    // horizontal_blur_alternate(radius as f32, &image, &mut new_image);
+    box_filter_mut(radius as i32, &image, &mut new_image);
 
     // swaps dimensions to allow transposing new_image into image
     image.swap_dimensions();
@@ -187,7 +349,7 @@ pub fn box_filter_mut(filter: f32, mut image: &mut RgbaImage) {
     new_image.swap_dimensions();
 
     // blur pixels column wise
-    horizontal_blur(radius, &image, &mut new_image);
+    box_filter_mut(radius as i32, &image, &mut new_image);
     // horizontal_blur_alternate(radius as f32, &image, &mut new_image);
 
     // swaps image back to its original dimensions
@@ -195,24 +357,15 @@ pub fn box_filter_mut(filter: f32, mut image: &mut RgbaImage) {
     transpose_rgba(&new_image, &mut image);
 }
 
-// this assume the kernel is smaller than the image, so it isn't absolutely
-// robust for all size kernels and image sizes
-fn horizontal_blur(radius: f32, image: &RgbaImage, blur_image: &mut RgbaImage) {
+fn box_filter_mut(radius: i32, image: &RgbaImage, blur_image: &mut RgbaImage) {
     assert!(image.width() == blur_image.width());
     assert!(image.height() == blur_image.height());
 
     let (width, height) = image.dimensions();
 
-    let scale = 1.0 / (2.0 * radius + 1.0);
-    let (radius, alpha) = {
-        let m = radius as i32;
-        let alpha = radius - m as f32;
-        (m, alpha)
-    };
+    let scale = 1.0 / (2.0 * radius as f32 + 1.0);
 
     let (width, height) = (width as i32, height as i32);
-
-    let lerp = |t, a, b| a + t * (b - a);
 
     for y in 0..height {
         let (mut sum_red, mut sum_green, mut sum_blue) = {
@@ -240,17 +393,6 @@ fn horizontal_blur(radius: f32, image: &RgbaImage, blur_image: &mut RgbaImage) {
                     sum_blue += pixel[2] as f32;
                 }
             }
-
-            let begin_pixel = image[(0, y as u32)];
-
-            // perform a check to see what size the kernel is in relation
-            // to the width of the image
-            let end_pixel = image[(end as u32, y as u32)];
-
-            sum_red += alpha * (end_pixel[0] as f32 + begin_pixel[0] as f32);
-            sum_green += alpha * (end_pixel[1] as f32 + begin_pixel[1] as f32);
-            sum_blue += alpha * (end_pixel[2] as f32 + begin_pixel[2] as f32);
-
             (sum_red, sum_green, sum_blue)
         };
 
@@ -266,37 +408,20 @@ fn horizontal_blur(radius: f32, image: &RgbaImage, blur_image: &mut RgbaImage) {
                 image[((x - radius) as u32, y as u32)]
             };
 
-            let before_begin_pixel = if x - radius - 1 < 0 {
-                image[(0, y as u32)]
-            } else {
-                image[((x - radius - 1) as u32, y as u32)]
-            };
-
             let end_pixel = if x + radius + 1 >= width {
                 image[(width as u32 - 1, y as u32)]
             } else {
                 image[((x + radius + 1) as u32, y as u32)]
             };
 
-            let after_end_pixel = if x + radius + 2 >= width {
-                image[(width as u32 - 1, y as u32)]
-            } else {
-                image[((x + radius + 2) as u32, y as u32)]
-            };
-
-            sum_red += lerp(alpha, end_pixel[0] as f32, after_end_pixel[0] as f32);
-            sum_red -= lerp(alpha, begin_pixel[0] as f32, before_begin_pixel[0] as f32);
-
-            sum_green += lerp(alpha, end_pixel[1] as f32, after_end_pixel[1] as f32);
-            sum_green -= lerp(alpha, begin_pixel[1] as f32, before_begin_pixel[1] as f32);
-
-            sum_blue += lerp(alpha, end_pixel[2] as f32, after_end_pixel[2] as f32);
-            sum_blue -= lerp(alpha, begin_pixel[2] as f32, before_begin_pixel[2] as f32);
+            sum_red += end_pixel[0] as f32 - begin_pixel[0] as f32;
+            sum_green += end_pixel[1] as f32 - begin_pixel[1] as f32;
+            sum_blue += end_pixel[2] as f32 - begin_pixel[2] as f32;
         }
     }
 }
 
-pub fn naive_box_filter_mut(filter: u32, image: &mut RgbaImage) {
+fn naive_box_filter_mut(filter: u32, image: &mut RgbaImage) {
     let (width, height) = image.dimensions();
 
     // want the truncated value of this division, hence not using float
@@ -316,13 +441,13 @@ pub fn naive_box_filter_mut(filter: u32, image: &mut RgbaImage) {
             // doesn't actually access the filter because everything is 1
             for i in begin..=end {
                 if i < 0 {
-                    sum_red += image.get_pixel(x, y).0[0] as f32;
-                    sum_green += image.get_pixel(x, y).0[1] as f32;
-                    sum_blue += image.get_pixel(x, y).0[2] as f32;
+                    sum_red += image.get_pixel(0, y).0[0] as f32;
+                    sum_green += image.get_pixel(0, y).0[1] as f32;
+                    sum_blue += image.get_pixel(0, y).0[2] as f32;
                 } else if i >= width as i32 {
-                    sum_red += image.get_pixel(x, y).0[0] as f32;
-                    sum_green += image.get_pixel(x, y).0[1] as f32;
-                    sum_blue += image.get_pixel(x, y).0[2] as f32;
+                    sum_red += image.get_pixel(width - 1, y).0[0] as f32;
+                    sum_green += image.get_pixel(width - 1, y).0[1] as f32;
+                    sum_blue += image.get_pixel(width - 1, y).0[2] as f32;
                 } else {
                     sum_red += image.get_pixel(i as u32, y).0[0] as f32;
                     sum_green += image.get_pixel(i as u32, y).0[1] as f32;
@@ -348,13 +473,13 @@ pub fn naive_box_filter_mut(filter: u32, image: &mut RgbaImage) {
             let end: i32 = y as i32 + filter_radius;
             for i in begin..=end {
                 if i < 0 {
-                    sum_red += horizontal_blur_image.get_pixel(x, y).0[0] as f32;
-                    sum_green += horizontal_blur_image.get_pixel(x, y).0[1] as f32;
-                    sum_blue += horizontal_blur_image.get_pixel(x, y).0[2] as f32;
+                    sum_red += horizontal_blur_image.get_pixel(x, 0).0[0] as f32;
+                    sum_green += horizontal_blur_image.get_pixel(x, 0).0[1] as f32;
+                    sum_blue += horizontal_blur_image.get_pixel(x, 0).0[2] as f32;
                 } else if i >= height as i32 {
-                    sum_red += horizontal_blur_image.get_pixel(x, y).0[0] as f32;
-                    sum_green += horizontal_blur_image.get_pixel(x, y).0[1] as f32;
-                    sum_blue += horizontal_blur_image.get_pixel(x, y).0[2] as f32;
+                    sum_red += horizontal_blur_image.get_pixel(x, height - 1).0[0] as f32;
+                    sum_green += horizontal_blur_image.get_pixel(x, height - 1).0[1] as f32;
+                    sum_blue += horizontal_blur_image.get_pixel(x, height - 1).0[2] as f32;
                 } else {
                     sum_red += horizontal_blur_image.get_pixel(x, i as u32).0[0] as f32;
                     sum_green += horizontal_blur_image.get_pixel(x, i as u32).0[1] as f32;
@@ -380,7 +505,7 @@ mod tests {
         let mut fast_image = image.clone();
 
         let size = 3;
-        box_filter_mut(MeanKernel::new(size), &mut fast_image);
+        box_filter_mut(BoxKernel::new(size), &mut fast_image);
 
         for (naive, fast) in image.pixels().zip(fast_image.pixels()) {
             assert_eq!(naive[0], fast[0]);
